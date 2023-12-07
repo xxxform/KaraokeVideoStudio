@@ -9,15 +9,19 @@ let timelineTimer = -1;
 
 //проблемы с буковй ё. остаё не делится на два слога
 //todo нижняя редактируемая линейка слов
+//одно поле ввод посредине. 
 
-//todo. неудобно редактировать слова. 
-//или сделать перетаскиваемый курсор 
-//или при перемотке двигать курсор и не перерисовывать таймлайн пока курсор не выйдет за его пределы по времени
+//выполнено
+//перемотка двигает курсор и не перерисовывает таймлайн пока курсор не выйдет за его пределы по времени
+
 
 fileInput.onchange = () => {
     if (fileInput.files[0])
         audio.src = (window.URL || window.webkitURL).createObjectURL(fileInput.files[0]);
 }
+
+const getTimelinePercent = (time = audio.currentTime) => 
+    (time - timelinePosition) / (timelineDuration / 100);
 
 const createSyllableMap = e => {
     strings.length = 0; 
@@ -83,11 +87,9 @@ textarea.onchange = createSyllableMap;
 
 //extra: при удержании пальца/кнопки слог тянется
 
-// audio.currentTime //в секундах, writable
 //.duration длительность
 // .textTracks бывает и такое
 // .addTextTrack()
-//on play playing pause timeupdate
 //audio.onplaying = (e) => console.log('onplaying'); также как и play
 
 // в таймлайне будут отображаться текущие строки
@@ -213,16 +215,18 @@ const clickHandler = () => { // как из js изменить css класс �
     syllable.time = audio.currentTime;
     syllable.element.classList.add('color');
 
-    const currentPersent = (audio.currentTime - timelinePosition) / (timelineDuration / 100) + '%';
-    if (syllable.timelineSpan)  //секунд от начала timelinePosition
-        syllable.timelineSpan.style.left = currentPersent;
-    else {
-        syllable.timelineSpan = syllable.element.cloneNode(true);
-        syllable.timelineSpan.style.left = currentPersent;
-        words.append(syllable.timelineSpan);
-    }
-    
     shiftWordCursors();
+
+    const currentPercent = (audio.currentTime - timelinePosition) / (timelineDuration / 100) + '%';
+    if (syllable.timelineSpan) { //секунд от начала timelinePosition
+        syllable.timelineSpan.style.left = currentPercent;
+        clearTimeout(timer);
+        play();
+    } else {
+        syllable.timelineSpan = syllable.element.cloneNode(true);
+        syllable.timelineSpan.style.left = currentPercent;
+        words.append(syllable.timelineSpan);
+    } 
 }
 
 const showTimeline = (from, duration) => {
@@ -248,12 +252,12 @@ const showTimeline = (from, duration) => {
 
 plus.onclick = () => {
     clearTimeout(timelineTimer);
-    showTimeline(audio.currentTime, +(scale.textContent = timelineDuration -= 3));
+    showTimeline(audio.currentTime, +(scale.textContent = timelineDuration -= 3), true);
     if (started) requestAnimationFrame(runCursor);
 }
 minus.onclick = () => {
     clearTimeout(timelineTimer);
-    showTimeline(audio.currentTime, +(scale.textContent = timelineDuration += 3));
+    showTimeline(audio.currentTime, +(scale.textContent = timelineDuration += 3), true);
     if (started) requestAnimationFrame(runCursor);
 }
 
@@ -275,6 +279,7 @@ audio.onpause = e => {
     main.onclick = null
     started = false;
 }
+
 //тикает при воспроизведении. 
 //если пользователь мотает:
 // браузер генерит onpause 
@@ -284,7 +289,13 @@ audio.ontimeupdate = e => {
     if (started) return;
     setCursorPosition();
     showStringsByPosition();
-    showTimeline(audio.currentTime, timelineDuration);
-    console.log('ontimeupdate');
+
+    const currentPercent = getTimelinePercent();
+    if (currentPercent < 0 || currentPercent > 99) {
+        showTimeline(audio.currentTime, timelineDuration);
+    } else {
+        cursor.style.transitionDuration = 0 + 's';
+        cursor.style.left = currentPercent + '%';
+    }
 }
 
