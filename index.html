@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KaraokeTextGenerator</title>
+    <script src="./slogi.js"></script>
+    <script defer src="./index.js"></script>
+    <style>
+        .main {
+            z-index: -1;
+            position: absolute;
+            top:0;
+            bottom: 0;
+            right: 0;
+            left: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+
+            .text > p {
+                margin: 0;
+                text-align: center;
+
+                /* > span {
+                    transition-property: color;
+                    transition-duration: .1s;
+                } */
+            }
+        }
+        .bottom {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+        audio {
+            width: 100%;
+        }
+        .color {
+            color: red;
+        }
+        .timeline {
+            position: relative;
+            height: 5em;
+
+            .buttons {
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 1;
+            }
+            #cursor {
+                left: 0%;
+                position: absolute;
+                height: 100%;
+                width: 1px;
+                border-right: 1px dashed red;
+                transition-property: left;
+                transition-timing-function: linear;
+            }
+            #words {
+                width: 100%;
+                height: 100%;
+                > span {
+                    position: absolute;
+                    height: 100%;
+                    display: flex;
+                    border-left: 1px dotted red;
+                    cursor: pointer;
+                }
+                > span:nth-child(3n+1) {
+                    align-items: baseline;
+                }
+                > span:nth-child(3n+2) {
+                    align-items: center;
+                }
+                > span:nth-child(3n+3) {
+                    align-items: end;
+                }
+            }
+        }
+    </style>
+</head>
+<body>
+    <button id="splitButton">Разбить на слоги</button> <br>
+    <textarea id="textarea" cols="30" rows="10"></textarea> <br>
+    <label>Цвет фона <input type="color" name="" id=""></label> <br>
+    <label>Размер шрифта<input type="number" name="" id=""></label> 
+
+    <div id="main" class="main">
+        <div id="text" class="text">
+            <p id="firstString"></p> <br>
+            <p id="secondString"></p>
+        </div>
+    </div>
+
+    <div class="bottom">    
+        <div class="source">
+            Файл <input type="file" id="fileInput" accept="audio/*"/> <br>
+            <label>Ссылка<input type="text" name="" ></label>
+        </div>
+
+        <div class="timeline">
+            <div class="buttons">
+                <button id="plus">+</button>
+                <button id="minus">-</button>
+                <span id="scale"></span>
+            </div>
+            <div id="cursor"></div>
+            <div id="words"></div>
+        </div>
+
+        <audio controls id="audio">
+
+        </audio>
+    </div>
+</body>
+
+</html>
