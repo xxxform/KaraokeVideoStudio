@@ -6,18 +6,29 @@ let timer = -1;
 let timelineDuration = scale.textContent = 10; //в секундах
 let timelinePosition = 0;
 let timelineTimer = -1;
+let spanSyllableMap = new WeakMap();
 
 //проблемы с буковй ё. остаё не делится на два слога
 //todo нижняя редактируемая линейка слов
 //одно поле ввод посредине. 
+//todo тест мобильной версии
+
+//Fullscreen API
+//Fullscreen API позволяет отображать элемент или всю страницу в полноэкранном режиме.
+//await document.documentElement.requestFullscreen(); await document.exitFullscreen();
 
 //выполнено
 //перемотка двигает курсор и не перерисовывает таймлайн пока курсор не выйдет за его пределы по времени
 
+//todo extra
+//при удержании пальца/кнопки слог тянется
+//мультивыделение при удержании
 
-fileInput.onchange = () => {
+
+
+const updateLocalStorage = () => {
     if (fileInput.files[0])
-        audio.src = (window.URL || window.webkitURL).createObjectURL(fileInput.files[0]);
+        localStorage.setItem(fileInput.files[0].name, JSON.stringify({rawText: textarea.value, strings}));
 }
 
 const getTimelinePercent = (time = audio.currentTime) => 
@@ -63,6 +74,8 @@ const createSyllableMap = e => {
 
         return syllables;
     }));
+
+
 }
 
 splitButton.onclick = () => {
@@ -74,9 +87,10 @@ splitButton.onclick = () => {
         })
         .join('\n');
         createSyllableMap();
+        updateLocalStorage();
 }
 
-textarea.onchange = createSyllableMap;
+textarea.onchange = () => {createSyllableMap(); updateLocalStorage();}
 //_ склеивает частицу в один слог со словом. пробел, /, - разделители слогов
 // первым делом нужно сплит по \n - организация строчек песни в массив.
 // каждый слог должен быть привязан ко времени в секундах. 
@@ -84,8 +98,6 @@ textarea.onchange = createSyllableMap;
 //каждый запуск ищется последний слог, у которого нет времени т.е time === -1.
 // или последний который больше currentTime
 //performance.now() возвращает время в ms от загрузки страницы.
-
-//extra: при удержании пальца/кнопки слог тянется
 
 //.duration длительность
 // .textTracks бывает и такое
@@ -132,6 +144,23 @@ const showStringsByPosition = () => {
             secondString.appendChild(element);
         }));
     }
+}
+
+fileInput.onchange = () => {
+    if (fileInput.files[0]) {
+        audio.src = (window.URL || window.webkitURL).createObjectURL(fileInput.files[0]);
+        let savedSong = localStorage.getItem(fileInput.files[0].name);
+        if (savedSong) {
+            savedSong = JSON.parse(savedSong);
+            strings = savedSong.strings.map(syllable => {
+                const span = document.createElement('span');
+                span.textContent = syllable.syllable;
+                syllable.element = span;
+            })
+            showStringsByPosition();
+            showTimeline(audio.currentTime, timelineDuration);
+        }
+    }   
 }
 
 // strings[0][0].element.before(document.createElement('div')) вставит div перед span.  
@@ -224,6 +253,7 @@ const clickHandler = () => { // как из js изменить css класс �
         play();
     } else {
         syllable.timelineSpan = syllable.element.cloneNode(true);
+        spanSyllableMap.set(syllable.timelineSpan, syllable);
         syllable.timelineSpan.style.left = currentPercent;
         words.append(syllable.timelineSpan);
     } 
@@ -240,6 +270,7 @@ const showTimeline = (from, duration) => {
     });
     wordList.forEach(word => {
         word.timelineSpan = word.element.cloneNode(true);
+        spanSyllableMap.set(word.timelineSpan, word);
         word.timelineSpan.classList.remove('color');
         const relativeTime = word.time - from; //секунд от начала from для word
         const secondInOnePersent = duration / 100; 
@@ -266,7 +297,7 @@ audio.onplay = e => {
     showStringsByPosition();
     runCursor();
     play();
-    main.onclick = clickHandler;
+    main.onmousedown = main.ontouchstart = clickHandler;
     started = true;
 }
 
@@ -276,8 +307,45 @@ audio.onpause = e => {
     cursor.style.left = currentRelativeTime / (timelineDuration / 100) + '%';
     clearTimeout(timelineTimer);
     clearTimeout(timer);
-    main.onclick = null
+    main.onmousedown = main.ontouchstart = null
     started = false;
+    updateLocalStorage(); //todo 
+}
+
+let wordShiftMode = '';
+
+words.onmousedown = words.ontouchstart = e => {
+    if (started || e.target.tagName !== 'SPAN') return;
+    const syllable = spanSyllableMap.get(e.target);
+
+    const moveHandler = moveEvent => {
+        //if (moveEvent.target.tagName !== 'SPAN') return;
+        const currentSpanLeft = e.target.getBoundingClientRect().left;
+        const nextSpan = parseFloat(e.target?.nextElementSibling?.style?.left || '100%'); //? e.target.nextElementSibling.getBoundingClientRect().left : Infinity;
+        const prevSpan = parseFloat(e.target?.previousElementSibling?.style?.left || '0%'); //? e.target.previousElementSibling.getBoundingClientRect().left : -Infinity;
+        //if (!(prevSpanLeft < currentSpanLeft && currentSpanLeft < nextSpanLeft)) return;
+
+        const newPercent = moveEvent.x / (words.clientWidth / 100);
+        const secondInOnePercent = timelineDuration / 100; 
+        const currentTime = timelinePosition + newPercent * secondInOnePercent;
+
+        if (!(prevSpan < newPercent && newPercent < nextSpan)) return;
+        
+        syllable.time = currentTime;
+        e.target.style.left = newPercent + '%';
+    }
+
+    words.onmouseup = words.ontouchend = () => {
+        words.onmousemove = words.ontouchmove = null;
+    }
+
+    words.onmousemove = words.ontouchmove = moveHandler;
+
+    //spanSyllableMap
+
+    //если мы держим и не двигаемся 1.5 секунды - активируем режим мультивыделения
+    //как на мобилке так и на десктопе
+    console.log(e.target);
 }
 
 //тикает при воспроизведении. 
@@ -290,7 +358,7 @@ audio.ontimeupdate = e => {
     setCursorPosition();
     showStringsByPosition();
 
-    const currentPercent = getTimelinePercent();
+    const currentPercent = getTimelinePercent(); //todo поменять остальные relative
     if (currentPercent < 0 || currentPercent > 99) {
         showTimeline(audio.currentTime, timelineDuration);
     } else {
