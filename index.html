@@ -7,6 +7,9 @@
     <script src="./slogi.js"></script>
     <script defer src="./index.js"></script>
     <style>
+        /* body {
+            overflow: hidden;
+        } */
         .main {
             z-index: -1;
             position: absolute;
@@ -19,14 +22,18 @@
             align-items: center;
             user-select: none;
 
-            .text > p {
-                margin: 0;
-                text-align: center;
+            .text {
+                padding: 0 1em;
+                > p {
+                    margin: 0;
+                    text-align: center;
+                    font-size: 2em;
 
-                /* > span {
-                    transition-property: color;
-                    transition-duration: .1s;
-                } */
+                    /* > span {
+                        transition-property: color;
+                        transition-duration: .1s;
+                    } */
+                }
             }
         }
         .bottom {
@@ -81,27 +88,38 @@
                 }
             }
         }
+        .settings {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+
+            #toggleSettingsButton {
+                background-color: rgba(128,128,128,.1);
+                font-size: 5em;
+                border: 0;
+            }
+            #toggleSettingsButton:hover {
+                background-color: rgba(128,128,128,.3);
+            }
+            .content {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
     <button id="splitButton">Разбить на слоги</button> <br>
     <textarea id="textarea" cols="30" rows="10"></textarea> <br>
-    <label>Цвет фона <input type="color" name="" id=""></label> <br>
-    <label>Размер шрифта<input type="number" name="" id=""></label> 
 
     <div id="main" class="main">
         <div id="text" class="text">
-            <p id="firstString"></p> <br>
+            <p id="firstString"></p>
             <p id="secondString"></p>
         </div>
     </div>
 
     <div class="bottom">    
-        <div class="source">
-            Файл <input type="file" id="fileInput" accept="audio/*"/> <br>
-            <label>Ссылка<input type="text" name="" ></label>
-        </div>
-
         <div class="timeline">
             <div class="buttons">
                 <button id="plus">+</button>
@@ -113,8 +131,41 @@
         </div>
 
         <audio controls id="audio">
-
+            
         </audio>
+    </div>
+
+    <div class="settings">
+        <button id="toggleSettingsButton">...</button>
+        <div class="content" id="settingsContent">
+            <div class="source">
+                <label>Файл <input type="file" id="fileInput" accept="audio/*"/></label> <br>
+                <label>Ссылка<input type="text"></label>
+            </div>
+
+            <label>Цвет фона <input type="color" id="backgroundColor" value="#00ff00"></label> <br>
+            <label>Прозрачность фона <input type="range" value="0" id="backgroundOpacity"></label> <br>
+            
+            <label>Шрифт <select id="fontFamily">
+                <option value="Arial">Arial</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Helvetica">Helvetica</option>
+                <option value="Tahoma">Tahoma</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Trebuchet MS">Trebuchet MS</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Garamond">Garamond</option>
+                <option value="Palatino Linotype">Palatino Linotype</option>
+                <option value="Brush Script MT">Brush Script MT</option>
+            </select>
+            </label> <br>
+            <label>Размер шрифта<input type="number" name="" id="fontSize"></label> <br>
+            <label>Межстрочный интервал <input type="number" name="" id="lineSpacing"></label> <br>
+            <label>Цвет незакрашенных слогов <input type="color" id="rightSyllableColor"></label> <br>
+            <label>Цвет закрашенных слогов <input type="color" id="leftSyllableColor"></label> <br>
+
+        </div>
     </div>
 </body>
 

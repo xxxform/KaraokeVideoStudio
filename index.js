@@ -12,15 +12,25 @@ let spanSyllableMap = new WeakMap();
 //todo нижняя редактируемая линейка слов
 //одно поле ввод посредине. 
 //todo тест мобильной версии
+//фоновая картинка 
+//настройки скрыть за троеточием
+
+//порядок слоёв
+//фон
+//картинка / видео
+//текст с подложкой
 
 //Fullscreen API
 //Fullscreen API позволяет отображать элемент или всю страницу в полноэкранном режиме.
-//await document.documentElement.requestFullscreen(); await document.exitFullscreen();
+//await main.requestFullscreen(); await document.exitFullscreen();
+//после входа создается fixed button выйти из полноекранного.
+//по умолчанию она display none, после касания становится видимой на 4 секунды
 
 //выполнено
 //перемотка двигает курсор и не перерисовывает таймлайн пока курсор не выйдет за его пределы по времени
 
 //todo extra
+//extra возможность добавить фоновое видео
 //при удержании пальца/кнопки слог тянется
 //мультивыделение при удержании
 
@@ -150,12 +160,16 @@ fileInput.onchange = () => {
     if (fileInput.files[0]) {
         audio.src = (window.URL || window.webkitURL).createObjectURL(fileInput.files[0]);
         let savedSong = localStorage.getItem(fileInput.files[0].name);
-        if (savedSong) {
+        
+        if (savedSong && confirm(`Найдена сохраненная версия караоке этой песни. Загрузить её?`)) {
             savedSong = JSON.parse(savedSong);
-            strings = savedSong.strings.map(syllable => {
-                const span = document.createElement('span');
-                span.textContent = syllable.syllable;
-                syllable.element = span;
+            strings = savedSong.strings.map(string => {
+                return string.map(syllable => {
+                    const span = document.createElement('span');
+                    span.textContent = syllable.syllable;
+                    syllable.element = span;
+                    return syllable;
+                });
             })
             showStringsByPosition();
             showTimeline(audio.currentTime, timelineDuration);
@@ -280,6 +294,11 @@ const showTimeline = (from, duration) => {
         words.append(word.timelineSpan);
     })
 }
+
+toggleSettingsButton.onclick = () => {
+    settingsContent.style.display = settingsContent.style.display ? '' : 'block';
+}
+toggleSettingsButton.click();
 
 plus.onclick = () => {
     clearTimeout(timelineTimer);
