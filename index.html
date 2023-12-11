@@ -2,25 +2,27 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>KaraokeTextGenerator</title>
     <script src="./slogi.js"></script>
     <script defer src="./index.js"></script>
     <style>
-        /* body {
+        body {
+            margin: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
-        } */
+        }
         .main {
+            position: relative;
             z-index: -1;
-            position: absolute;
-            top:0;
-            bottom: 0;
-            right: 0;
-            left: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             user-select: none;
+            flex: 1 0 auto;
 
             .text {
                 padding: 0 1em;
@@ -35,10 +37,15 @@
                     } */
                 }
             }
+            #textCanvas, #backgroundCanvas {
+                max-height: 100%;
+                max-width: 100%;
+                position: absolute;
+                border: 1px solid gray;
+            }
         }
         .bottom {
-            position: absolute;
-            bottom: 0;
+           flex: 0 0 auto;
             width: 100%;
         }
         audio {
@@ -89,6 +96,7 @@
             }
         }
         .settings {
+            overflow-y: auto;
             position: absolute;
             top: 0;
             right: 0;
@@ -105,15 +113,19 @@
             .content {
                 display: none;
             }
+            & input[type="number"]{
+                width: 3em;
+            }
         }
     </style>
 </head>
 <body>
-    <button id="splitButton">Разбить на слоги</button> <br>
-    <textarea id="textarea" cols="30" rows="10"></textarea> <br>
-
     <div id="main" class="main">
-        <div id="text" class="text">
+        <canvas id="backgroundCanvas" width="1920" height="1080"></canvas>
+        <canvas id="textCanvas" width="1920" height="1080"></canvas>
+
+        <canvas id="renderCanvas" hidden></canvas>
+        <div id="text" class="text" hidden>
             <p id="firstString"></p>
             <p id="secondString"></p>
         </div>
@@ -137,7 +149,14 @@
 
     <div class="settings">
         <button id="toggleSettingsButton">...</button>
+    
         <div class="content" id="settingsContent">
+            <button id="splitButton">Разбить на слоги</button>
+            <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
+            <!-- Подозреваю, что для EN придется асинхронно обращаться во вне или скачивать словарь с исключениями-->
+            <br> 
+            <textarea id="textarea" cols="30" rows="10"></textarea> <br>    
+
             <div class="source">
                 <label>Файл <input type="file" id="fileInput" accept="audio/*"/></label> <br>
                 <label>Ссылка<input type="text"></label>

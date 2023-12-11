@@ -34,7 +34,123 @@ let spanSyllableMap = new WeakMap();
 //при удержании пальца/кнопки слог тянется
 //мультивыделение при удержании
 
+//при рендере написать сообщение. Пожалйста дождитесь окончания рендера, не закрывайте вкладку(иначе reqFrame заморозится)
+//использовать api Screen Wake Lock API  кофе чтобы не заснула   
+//!!!!
 
+
+
+var canvasContext = textCanvas.getContext("2d");
+canvasContext.font = `${Math.ceil(textCanvas.width / 30)}px Arial`;
+canvasContext.textAlign = "left";
+canvasContext.textBaseline = 'bottom'; //горизонтальная линия проходящая в самом низу текста
+canvasContext.fillStyle = "yellow";
+//canvasContext.fillRect(0,0,1920,1080);
+//canvasContext.strokeStyle = 'black';
+
+const metrics = canvasContext.measureText('Ночью в поле звезд благодать');
+
+canvasContext.fillText("Ночью в поле звезд благодать", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
+
+const metrics2 = canvasContext.measureText('Мы пойдем с конем по полю вдвоем');
+
+canvasContext.fillText("Мы пойдем с конем по полю вдвоем", textCanvas.width / 2 - metrics2.width / 2, textCanvas.height * .75 + metrics.actualBoundingBoxAscent * 1.5);
+canvasContext.strokeStyle = 'red';
+let left = textCanvas.width / 2 - metrics.actualBoundingBoxRight;
+canvasContext.textAlign = "left";
+canvasContext.fillStyle = "red";
+canvasContext.fillText("Ночью в поле звезд", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
+//canvasContext.strokeText("Ночью в поле звезд благодать", Math.floor(left), textCanvas.height * .75);
+
+
+//actualBoundingBoxAscent до верху от baseline bottom
+/*
+actualBoundingBoxAscent: 46  47 
+actualBoundingBoxDescent 0   9
+actualBoundingBoxLeft   22.34375 446.5625
+actualBoundingBoxRight  22.65625 449.21875
+fontBoundingBoxAscent   58 58
+fontBoundingBoxDescent   14 14
+width                   42.6875 901.125
+*/
+
+var stream = renderCanvas.captureStream(); 
+//если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps
+var recorder = new MediaRecorder(stream, {
+    videoBitsPerSecond : 250000000,
+});
+
+// let desktopStream;
+// navigator.mediaDevices.getDisplayMedia({video: true})
+//     .then(s => desktopStream = s);
+
+// const run = async () => {
+//     const suggestedName = "screen-recording.webm";
+//     const handle = await window.showSaveFilePicker(
+//         { suggestedName }
+//     );
+//     const writable = await handle.createWritable();
+
+//     const desktop = streamToVideo(desktopStream);
+
+//     const context = renderCanvas.getContext('2d');
+//     renderCanvas.width = 1920;
+//     renderCanvas.height = 1080;
+
+//     //var textStream = canvas.captureStream(30); 
+
+//     (function draw() {
+//         context.drawImage(desktop, 0, 0, 1920, 1080);
+//         context.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+
+//         requestAnimationFrame(draw);
+//     })();
+    
+//     // Начать запись экрана
+//     recorder.start();
+//     recorder.addEventListener(
+//         "dataavailable",
+//         async (event) => {
+//         // Запись фрагментов в файл
+//         await writable.write(event.data);
+//         if (recorder.state === "inactive") {
+//             // Закрыть файл,
+//             // когда запись остановится
+//             await writable.close();
+//         }
+//     });
+
+//     setTimeout(() => {
+//         recorder.stop();
+//         stream.getTracks().forEach((track) => {
+//             track => track.stop();
+//         });
+//     }, 10000);
+// };
+
+function streamToVideo(stream) {
+    let video = document.createElement('video');
+
+    video.srcObject = stream;
+
+    video.style.width = stream.width;
+    video.style.height = stream.height;
+
+    video.play();
+
+    return video;
+}
+
+async function getDesktop() {
+    return await navigator.mediaDevices.getDisplayMedia({video: true});
+}
+
+//canvas.onclick = run;
+
+const drawString = (y, string, toSyllable) => {
+    
+    const metrics = canvasContext.measureText('Ночью в поле звезд благодать');
+}
 
 const updateLocalStorage = () => {
     if (fileInput.files[0])
