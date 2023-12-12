@@ -28,9 +28,10 @@ let spanSyllableMap = new WeakMap();
 
 //для мобильной версии мультивыделение реализовать
 //касанием сначала одним пальцем слева, потом другим справа в нужном диапазоне
+//касание слева фиксируется на следующий элемент span, если нет то на первый
 
-//когда будем кликать ритм, начнется безумие
-//main.ondblclick = () => document.fullscreenElement ? document.exitFullscreen() : document.body.requestFullscreen();
+//todo стиль для выделенных span. добавлять класс для всех draggable или всегда отслеживать text.onselectstart и document.onselectionchange внутри span если он parent.id === 'words'
+//сделать bg другого цвета. 
 
 //после входа создается fixed button выйти из полноекранного.
 //по умолчанию она display none, после касания становится видимой на 4 секунды
@@ -46,8 +47,6 @@ let spanSyllableMap = new WeakMap();
 //при рендере написать сообщение. Пожалйста дождитесь окончания рендера, не закрывайте вкладку(иначе reqFrame заморозится)
 //использовать api Screen Wake Lock API  кофе чтобы не заснула   
 //!!!!
-
-
 
 var canvasContext = textCanvas.getContext("2d");
 canvasContext.font = `${Math.ceil(textCanvas.width / 30)}px Arial`;
@@ -443,6 +442,8 @@ audio.onpause = e => {
     updateLocalStorage(); //todo 
 }
 
+main.addEventLi
+
 /*
 multipleSelectionMode
 Пользователь зажимает span на какое-то время. 
@@ -452,33 +453,57 @@ multipleSelectionMode становится true;
 если был выделен хоть один элемент то продолжаем, иначе multipleSelectionMode = false
 
 */
+
+const getSelectedSpans = selection => {
+    const spans = Array.from(words.children); //anchorNode всегда textNode
+    let fromSpanIndex = spans.indexOf(selection.anchorNode.parentElement);
+    let toSpanIndex = spans.indexOf(selection.focusNode.parentElement);
+    if (fromSpanIndex > toSpanIndex) [fromSpanIndex, toSpanIndex] = [toSpanIndex, fromSpanIndex];
+    return spans.slice(fromSpanIndex, toSpanIndex + 1);
+}
+
+let prevSelectedSpans = [];
+//переделать
+document.onselectionchange = e => {
+    prevSelectedSpans.forEach(span => span.classList.remove('active'));
+    const selection = getSelection();
+    if(selection.anchorNode?.parentElement?.parentElement !== words || selection.focusNode?.parentElement?.parentElement !== words) return;
+    prevSelectedSpans = getSelectedSpans(selection);
+    prevSelectedSpans.forEach(span => span.classList.add('active'));
+}
+
 let multipleSelectionMode = false;
 
 words.onmousedown = words.ontouchstart = e => {
-    if (started || e.target.tagName !== 'SPAN') return;
+    //как только e.targetTouches.length == 2 переходим в multipleSelectionMode
+    words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
+
+    if (e.shiftKey) {multipleSelectionMode = true; return}
+    if (e.touches?.length == 2) {
+        getSelection().setBaseAndExtent(e.touches[0].target.childNodes[0], 0, e.touches[1].target.childNodes[0], 0);
+        multipleSelectionMode = true;
+        return;
+    }
+    if (started || e.target.tagName !== 'SPAN') return
+
     const syllable = spanSyllableMap.get(e.target);
     const pxToSpan = (e.x || e.targetTouches[0].clientX) - e.target.getBoundingClientRect().x;
-    let timerToMultipleSelectionMode = -1;
 
     const selection = getSelection();
     let spansToDrag = [];
     
     if (multipleSelectionMode) {
-        const arrayOfSelectedElements = Array.from(words.children);
-        let fromSpanIndex = arrayOfSelectedElements.indexOf(selection.anchorNode.parentElement); //TODO!!!. это из за нод лист вместо элемент
-        let toSpanIndex = arrayOfSelectedElements.indexOf(selection.focusNode.parentElement);
-        if (fromSpanIndex > toSpanIndex) [fromSpanIndex, toSpanIndex] = [toSpanIndex, fromSpanIndex];
-        spansToDrag = arrayOfSelectedElements.slice(fromSpanIndex, toSpanIndex + 1);
+        spansToDrag = getSelectedSpans(selection); 
+        document.getSelection().removeAllRanges();
+        if (!spansToDrag.includes(e.target)) {
+            multipleSelectionMode = false; 
+            return
+        };
     }
     
-
     let moveHandler = moveEvent => {
-        clearTimeout(timerToMultipleSelectionMode);
-        //if (moveEvent.target.tagName !== 'SPAN') return;
-        const currentSpanLeft = e.target.getBoundingClientRect().left;
-        const nextSpan = parseFloat(e.target?.nextElementSibling?.style?.left || '100%'); //? e.target.nextElementSibling.getBoundingClientRect().left : Infinity;
-        const prevSpan = parseFloat(e.target?.previousElementSibling?.style?.left || '0%'); //? e.target.previousElementSibling.getBoundingClientRect().left : -Infinity;
-        //if (!(prevSpanLeft < currentSpanLeft && currentSpanLeft < nextSpanLeft)) return;
+        const nextSpan = parseFloat(e.target?.nextElementSibling?.style?.left || '100%'); 
+        const prevSpan = parseFloat(e.target?.previousElementSibling?.style?.left || '0%'); 
 
         const newPercent = ((moveEvent.x || moveEvent.targetTouches[0].clientX) - pxToSpan) / (words.clientWidth / 100);
         const secondInOnePercent = timelineDuration / 100; 
@@ -512,38 +537,24 @@ words.onmousedown = words.ontouchstart = e => {
         });
     }
 
-    words.onmouseup = words.ontouchend = multipleSelectionMode ? () => {
+    words.onmouseup = words.ontouchend =  () => {
+        if (multipleSelectionMode) document.getSelection().removeAllRanges();
         words.onmousemove = words.ontouchmove = null;
         multipleSelectionMode = false;
-        //document.getSelection().removeAllRanges(); //чтобы снять выделение нужно отщелкнуться
-    } : () => {
-        if (!multipleSelectionMode || getSelection().type !== 'Range') {
-            words.onmousemove = words.ontouchmove = null;
-            multipleSelectionMode = false;
-        }    
     };
 
     words.onmousemove = words.ontouchmove = multipleSelectionMode ? multipleMoveHandler : moveHandler;
 
-    if (!multipleSelectionMode) //Если мы не в режиме выделения поставить таймер до его активации
-        timerToMultipleSelectionMode = setTimeout(() => {
-            multipleSelectionMode = true;
-            words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
-
-            //даем возможность пользователю отщелкнуться если он хочет прекратить перетаскивать выделенное
-            // document.body.onclick = e => {
-            //     if (e.target.parentElement.id === 'words') return;
-            //     document.getSelection().removeAllRanges();
-            //     multipleSelectionMode = false;
-            //     document.body.onclick = null;
-            // }
-        }, 800);
-
-    //spanSyllableMap
+    // words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
 
     //если мы держим и не двигаемся 1.5 секунды - активируем режим мультивыделения
     //как на мобилке так и на десктопе
 }
+
+main.addEventListener('click', () => {
+    document.getSelection().removeAllRanges();
+    multipleSelectionMode = false;
+});
 
 //тикает при воспроизведении. 
 //если пользователь мотает:
