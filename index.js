@@ -2,6 +2,7 @@ let started = false;
 let strings = []; 
 let syllableCursor = -1;
 let stringCursor = -1;
+let isSecondString = false;
 let timer = -1;
 let timelineDuration = scale.textContent = 10; //в секундах
 let timelinePosition = 0;
@@ -43,23 +44,24 @@ let spanSyllableMap = new WeakMap();
 var canvasContext = textCanvas.getContext("2d");
 canvasContext.font = `${Math.ceil(textCanvas.width / 30)}px Arial`;
 canvasContext.textAlign = "left";
-canvasContext.textBaseline = 'bottom'; //горизонтальная линия проходящая в самом низу текста
+canvasContext.textBaseline = 'top'; //горизонтальная линия проходящая в самом низу текста или вверху
 canvasContext.fillStyle = "yellow";
 //canvasContext.fillRect(0,0,1920,1080);
 //canvasContext.strokeStyle = 'black';
 
 const metrics = canvasContext.measureText('Ночью в поле звезд благодать');
 
-canvasContext.fillText("Ночью в поле звезд благодать", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
+//canvasContext.fillText("Ночью в поле звезд благодать", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
 
 const metrics2 = canvasContext.measureText('Мы пойдем с конем по полю вдвоем');
 
-canvasContext.fillText("Мы пойдем с конем по полю вдвоем", textCanvas.width / 2 - metrics2.width / 2, textCanvas.height * .75 + metrics.actualBoundingBoxAscent * 1.5);
-canvasContext.strokeStyle = 'red';
+//canvasContext.fillText("Мы пойдем с конем по полю вдвоем", textCanvas.width / 2 - metrics2.width / 2, textCanvas.height * .75 + metrics.actualBoundingBoxAscent * 1.5);
+
 let left = textCanvas.width / 2 - metrics.actualBoundingBoxRight;
 canvasContext.textAlign = "left";
 canvasContext.fillStyle = "red";
-canvasContext.fillText("Ночью в поле звезд", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
+//canvasContext.fillText("Ночью в поле звезд", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
+canvasContext.strokeStyle = 'red';
 //canvasContext.strokeText("Ночью в поле звезд благодать", Math.floor(left), textCanvas.height * .75);
 
 
@@ -147,9 +149,27 @@ async function getDesktop() {
 
 //canvas.onclick = run;
 
-const drawString = (y, string, toSyllable) => {
+const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
     
-    const metrics = canvasContext.measureText('Ночью в поле звезд благодать');
+    const string = strings[stringIndex].map(({syllable}) => syllable);
+    const text = string.join('');
+    const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string-x
+    const x = textCanvas.width / 2 - metrics.width / 2;
+    const y = textCanvas.height * .75 + ((stringIndex % 2) ? metrics.actualBoundingBoxDescent * 1.5 : 0);
+
+    canvasContext.clearRect(0, y, textCanvas.width, metrics.actualBoundingBoxDescent * 1.2);
+
+    canvasContext.fillStyle = "yellow";
+    canvasContext.fillText(text, x, y);
+
+    if (~toSyllableIndex) {
+        const substring = string.slice(0, toSyllableIndex + 1).join('');
+        canvasContext.fillStyle = "red";
+        canvasContext.fillText(substring, x, y);
+        canvasContext.strokeStyle = 'red';
+        canvasContext.strokeText(substring, x, y);
+    } 
+    return metrics;
 }
 
 const updateLocalStorage = () => {
@@ -192,9 +212,6 @@ const createSyllableMap = e => {
         }
 
         syllables.forEach(syllable => {
-            const span = document.createElement('span');
-            span.textContent = syllable.syllable;
-            syllable.element = span;
             syllable.timelineSpan = null;
         })
 
@@ -252,23 +269,26 @@ const showStringsByPosition = () => {
     let nextString = strings[stringCursor + 1];
 
     if (!currentString) return;
-    firstString.innerHTML = '';
+    
+    drawString(stringCursor, syllableCursor - 1);
 
-    currentString.forEach((({element, timelineSpan}, index) => {
-        element.classList.remove('color');
-        firstString.appendChild(element);
-        if (index < syllableCursor) {
-            element.classList.add('color');
-            if (timelineSpan) timelineSpan.classList.add('color');
-        } 
-    }));
+    for (let span of words.children) {
+        const syllable = spanSyllableMap.get(span);
+        span.classList[audio.currentTime > syllable.time ? 'add' : 'remove']('color');
+    }
+    // currentString.forEach((({timelineSpan}, index) => {
+    //     if (index < syllableCursor && timelineSpan)  //всё что мы прошли закрасить
+    //         timelineSpan.classList.add('color');
+    // }));
 
     if (nextString) {
-        secondString.innerHTML = '';
-        nextString.forEach((({element}) => {
-            element.classList.remove('color');
-            secondString.appendChild(element);
-        }));
+        drawString(stringCursor + 1);
+
+        //secondString.innerHTML = '';
+        // nextString.forEach((({element}) => {
+        //     element.classList.remove('color');
+        //     secondString.appendChild(element);
+        // }));
     }
 }
 
@@ -279,14 +299,9 @@ fileInput.onchange = () => {
         
         if (savedSong && confirm(`Найдена сохраненная версия караоке этой песни. Загрузить её?`)) {
             savedSong = JSON.parse(savedSong);
-            strings = savedSong.strings.map(string => {
-                return string.map(syllable => {
-                    const span = document.createElement('span');
-                    span.textContent = syllable.syllable;
-                    syllable.element = span;
-                    return syllable;
-                });
-            })
+            strings = savedSong.strings;
+            stringCursor = 0;
+            syllableCursor = 0;
             showStringsByPosition();
             showTimeline(audio.currentTime, timelineDuration);
         }
@@ -319,7 +334,7 @@ const shiftWordCursors = () => {
     else { //строка закончилась, удалить её и заменить на следующую. перевести курсор на second/first
         syllableCursor = 0; //тут обновить в интерфейсе строки
         const prevString = strings[stringCursor];
-        const p = prevString[0].element.parentElement; //строка что закончилась
+        //const p = prevString[0].element.parentElement; //строка что закончилась
 
         if (strings[stringCursor + 1]) {//виртуальная следующая строка существует в strings
             ++stringCursor;
@@ -327,11 +342,12 @@ const shiftWordCursors = () => {
             //отображаем новую строку вместо той что закончилась
             let nextString = strings[stringCursor + 1]; 
             if (nextString) {
-                p.innerHTML = '';
-                nextString.forEach((({element}) => {
-                    element.classList.remove('color');
-                    p.appendChild(element);
-                }));
+                drawString(stringCursor + 1);
+                //p.innerHTML = '';
+                // nextString.forEach((({element}) => {
+                //     element.classList.remove('color');
+                //     p.appendChild(element);
+                // }));
             }
         } else { //конец песни
             stringCursor = -1;
@@ -346,8 +362,8 @@ const play = () => {
     if (timeToNext < 0) return;
     
     timer = setTimeout(function show(syllable) {
-        syllable.element.classList.add('color');
-        if (syllable.timelineSpan) syllable.timelineSpan.classList.add('color');
+        drawString(stringCursor, syllableCursor);
+        if (syllable.timelineSpan?.classList) syllable.timelineSpan.classList.add('color');
         shiftWordCursors();
         if (stringCursor === -1) return;
         currentString = strings[stringCursor];
@@ -372,17 +388,19 @@ const clickHandler = () => { // как из js изменить css класс �
     let currentString = strings[stringCursor];
     let syllable = currentString[syllableCursor];
     syllable.time = audio.currentTime;
-    syllable.element.classList.add('color');
+    //syllable.element.classList.add('color');
+    drawString(stringCursor, syllableCursor);
 
     shiftWordCursors();
 
     const currentPercent = (audio.currentTime - timelinePosition) / (timelineDuration / 100) + '%';
-    if (syllable.timelineSpan) { //секунд от начала timelinePosition
+    if (syllable.timelineSpan?.style) { //секунд от начала timelinePosition
         syllable.timelineSpan.style.left = currentPercent;
         clearTimeout(timer);
         play();
     } else {
-        syllable.timelineSpan = syllable.element.cloneNode(true);
+        syllable.timelineSpan = document.createElement('span');
+        syllable.timelineSpan.textContent = syllable.syllable;
         spanSyllableMap.set(syllable.timelineSpan, syllable);
         syllable.timelineSpan.style.left = currentPercent;
         words.append(syllable.timelineSpan);
@@ -399,7 +417,8 @@ const showTimeline = (from, duration) => {
         return time >= from && time < from + duration;
     });
     wordList.forEach(word => {
-        word.timelineSpan = word.element.cloneNode(true);
+        word.timelineSpan = document.createElement('span');
+        word.timelineSpan.textContent = word.syllable;
         spanSyllableMap.set(word.timelineSpan, word);
         word.timelineSpan.classList.remove('color');
         const relativeTime = word.time - from; //секунд от начала from для word
@@ -414,7 +433,7 @@ const showTimeline = (from, duration) => {
 toggleSettingsButton.onclick = () => {
     settingsContent.style.display = settingsContent.style.display ? '' : 'block';
 }
-toggleSettingsButton.click();
+//toggleSettingsButton.click();
 
 plus.onclick = () => {
     clearTimeout(timelineTimer);
