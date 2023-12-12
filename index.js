@@ -16,14 +16,22 @@ let spanSyllableMap = new WeakMap();
 //фоновая картинка 
 //настройки скрыть за троеточием
 
+//loopmode. если on, когда timeline кончается, песня перематывается в начало timeline
+//#scale сделать contenteditable
+
 //порядок слоёв
 //фон
 //картинка / видео
 //текст с подложкой
 
-//Fullscreen API
-//Fullscreen API позволяет отображать элемент или всю страницу в полноэкранном режиме.
-//await main.requestFullscreen(); await document.exitFullscreen();
+//для desktop сделать проще. если зажат e.shiftKey будет мультивыделение
+
+//для мобильной версии мультивыделение реализовать
+//касанием сначала одним пальцем слева, потом другим справа в нужном диапазоне
+
+//когда будем кликать ритм, начнется безумие
+//main.ondblclick = () => document.fullscreenElement ? document.exitFullscreen() : document.body.requestFullscreen();
+
 //после входа создается fixed button выйти из полноекранного.
 //по умолчанию она display none, после касания становится видимой на 4 секунды
 
@@ -63,18 +71,6 @@ canvasContext.fillStyle = "red";
 //canvasContext.fillText("Ночью в поле звезд", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
 canvasContext.strokeStyle = 'red';
 //canvasContext.strokeText("Ночью в поле звезд благодать", Math.floor(left), textCanvas.height * .75);
-
-
-//actualBoundingBoxAscent до верху от baseline bottom
-/*
-actualBoundingBoxAscent: 46  47 
-actualBoundingBoxDescent 0   9
-actualBoundingBoxLeft   22.34375 446.5625
-actualBoundingBoxRight  22.65625 449.21875
-fontBoundingBoxAscent   58 58
-fontBoundingBoxDescent   14 14
-width                   42.6875 901.125
-*/
 
 var stream = renderCanvas.captureStream(); 
 //если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps
@@ -153,7 +149,7 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
     
     const string = strings[stringIndex].map(({syllable}) => syllable);
     const text = string.join('');
-    const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string-x
+    const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x
     const x = textCanvas.width / 2 - metrics.width / 2;
     const y = textCanvas.height * .75 + ((stringIndex % 2) ? metrics.actualBoundingBoxDescent * 1.5 : 0);
 
@@ -276,20 +272,8 @@ const showStringsByPosition = () => {
         const syllable = spanSyllableMap.get(span);
         span.classList[audio.currentTime > syllable.time ? 'add' : 'remove']('color');
     }
-    // currentString.forEach((({timelineSpan}, index) => {
-    //     if (index < syllableCursor && timelineSpan)  //всё что мы прошли закрасить
-    //         timelineSpan.classList.add('color');
-    // }));
 
-    if (nextString) {
-        drawString(stringCursor + 1);
-
-        //secondString.innerHTML = '';
-        // nextString.forEach((({element}) => {
-        //     element.classList.remove('color');
-        //     secondString.appendChild(element);
-        // }));
-    }
+    if (nextString) drawString(stringCursor + 1); 
 }
 
 fileInput.onchange = () => {
@@ -333,8 +317,6 @@ const shiftWordCursors = () => {
     if (nextSyllable) syllableCursor++; //следующий слог
     else { //строка закончилась, удалить её и заменить на следующую. перевести курсор на second/first
         syllableCursor = 0; //тут обновить в интерфейсе строки
-        const prevString = strings[stringCursor];
-        //const p = prevString[0].element.parentElement; //строка что закончилась
 
         if (strings[stringCursor + 1]) {//виртуальная следующая строка существует в strings
             ++stringCursor;
@@ -343,11 +325,6 @@ const shiftWordCursors = () => {
             let nextString = strings[stringCursor + 1]; 
             if (nextString) {
                 drawString(stringCursor + 1);
-                //p.innerHTML = '';
-                // nextString.forEach((({element}) => {
-                //     element.classList.remove('color');
-                //     p.appendChild(element);
-                // }));
             }
         } else { //конец песни
             stringCursor = -1;
@@ -466,40 +443,106 @@ audio.onpause = e => {
     updateLocalStorage(); //todo 
 }
 
-let wordShiftMode = '';
+/*
+multipleSelectionMode
+Пользователь зажимает span на какое-то время. 
+multipleSelectionMode становится true;
+пользователь выделяет несколько элементов
+пользователь отпускает
+если был выделен хоть один элемент то продолжаем, иначе multipleSelectionMode = false
+
+*/
+let multipleSelectionMode = false;
 
 words.onmousedown = words.ontouchstart = e => {
     if (started || e.target.tagName !== 'SPAN') return;
     const syllable = spanSyllableMap.get(e.target);
+    const pxToSpan = (e.x || e.targetTouches[0].clientX) - e.target.getBoundingClientRect().x;
+    let timerToMultipleSelectionMode = -1;
 
-    const moveHandler = moveEvent => {
+    const selection = getSelection();
+    let spansToDrag = [];
+    
+    if (multipleSelectionMode) {
+        const arrayOfSelectedElements = Array.from(words.children);
+        let fromSpanIndex = arrayOfSelectedElements.indexOf(selection.anchorNode.parentElement); //TODO!!!. это из за нод лист вместо элемент
+        let toSpanIndex = arrayOfSelectedElements.indexOf(selection.focusNode.parentElement);
+        if (fromSpanIndex > toSpanIndex) [fromSpanIndex, toSpanIndex] = [toSpanIndex, fromSpanIndex];
+        spansToDrag = arrayOfSelectedElements.slice(fromSpanIndex, toSpanIndex + 1);
+    }
+    
+
+    let moveHandler = moveEvent => {
+        clearTimeout(timerToMultipleSelectionMode);
         //if (moveEvent.target.tagName !== 'SPAN') return;
         const currentSpanLeft = e.target.getBoundingClientRect().left;
         const nextSpan = parseFloat(e.target?.nextElementSibling?.style?.left || '100%'); //? e.target.nextElementSibling.getBoundingClientRect().left : Infinity;
         const prevSpan = parseFloat(e.target?.previousElementSibling?.style?.left || '0%'); //? e.target.previousElementSibling.getBoundingClientRect().left : -Infinity;
         //if (!(prevSpanLeft < currentSpanLeft && currentSpanLeft < nextSpanLeft)) return;
 
-        const newPercent = moveEvent.x / (words.clientWidth / 100);
+        const newPercent = ((moveEvent.x || moveEvent.targetTouches[0].clientX) - pxToSpan) / (words.clientWidth / 100);
         const secondInOnePercent = timelineDuration / 100; 
-        const currentTime = timelinePosition + newPercent * secondInOnePercent;
-
+        
         if (!(prevSpan < newPercent && newPercent < nextSpan)) return;
         
+        const currentTime = timelinePosition + newPercent * secondInOnePercent;
         syllable.time = currentTime;
         e.target.style.left = newPercent + '%';
     }
 
-    words.onmouseup = words.ontouchend = () => {
-        words.onmousemove = words.ontouchmove = null;
+    let multipleMoveHandler = moveEvent => {
+        const fromSpan = parseFloat(spansToDrag[0].style?.left);
+        const toSpan = parseFloat(spansToDrag[spansToDrag.length - 1].style?.left);
+        const nextSpan = parseFloat(spansToDrag[spansToDrag.length - 1].nextElementSibling?.style?.left || 100);
+        const prevSpan = parseFloat(spansToDrag[0].previousElementSibling?.style?.left || 0);
+
+        // вычислить разницу. Брать prevPercent
+        const newPercent = ((moveEvent.x || moveEvent.targetTouches[0].clientX) - pxToSpan) / (words.clientWidth / 100);
+        const deltaPercent = newPercent - parseFloat(e.target.style.left); // > 0 если перетащили влево
+        const secondInOnePercent = timelineDuration / 100; 
+        
+        if (!(prevSpan < fromSpan + deltaPercent && toSpan + deltaPercent < nextSpan)) return;
+        
+        spansToDrag.forEach(span => {
+            const syllable = spanSyllableMap.get(span);
+            const newPercent = parseFloat(span.style.left) + deltaPercent;
+            const currentTime = timelinePosition + newPercent * secondInOnePercent;
+            syllable.time = currentTime;
+            span.style.left = newPercent + '%';
+        });
     }
 
-    words.onmousemove = words.ontouchmove = moveHandler;
+    words.onmouseup = words.ontouchend = multipleSelectionMode ? () => {
+        words.onmousemove = words.ontouchmove = null;
+        multipleSelectionMode = false;
+        //document.getSelection().removeAllRanges(); //чтобы снять выделение нужно отщелкнуться
+    } : () => {
+        if (!multipleSelectionMode || getSelection().type !== 'Range') {
+            words.onmousemove = words.ontouchmove = null;
+            multipleSelectionMode = false;
+        }    
+    };
+
+    words.onmousemove = words.ontouchmove = multipleSelectionMode ? multipleMoveHandler : moveHandler;
+
+    if (!multipleSelectionMode) //Если мы не в режиме выделения поставить таймер до его активации
+        timerToMultipleSelectionMode = setTimeout(() => {
+            multipleSelectionMode = true;
+            words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
+
+            //даем возможность пользователю отщелкнуться если он хочет прекратить перетаскивать выделенное
+            // document.body.onclick = e => {
+            //     if (e.target.parentElement.id === 'words') return;
+            //     document.getSelection().removeAllRanges();
+            //     multipleSelectionMode = false;
+            //     document.body.onclick = null;
+            // }
+        }, 800);
 
     //spanSyllableMap
 
     //если мы держим и не двигаемся 1.5 секунды - активируем режим мультивыделения
     //как на мобилке так и на десктопе
-    console.log(e.target);
 }
 
 //тикает при воспроизведении. 
