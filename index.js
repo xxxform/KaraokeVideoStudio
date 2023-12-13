@@ -8,7 +8,8 @@ let timelineDuration = scale.textContent = 10; //в секундах
 let timelinePosition = 0;
 let timelineTimer = -1;
 let spanSyllableMap = new WeakMap();
-
+let wordsYoffset = .75;
+let lineSpacing = 1.5;
 //проблемы с буковй ё. остаё не делится на два слога
 //todo нижняя редактируемая линейка слов
 //одно поле ввод посредине. 
@@ -85,7 +86,14 @@ words.ondblclick = e => {
     fileInput.click();
 }
 
-document.addEventListener('DOMContentLoaded', () => setTimeout(() => document.documentElement.scrollTop = document.documentElement.scrollHeight, 0))
+textEditToolkit.onclick = () => {
+    if (started) return;
+    textEditToolkit.classList.add('active');
+    document.body.onclick = e => {
+        if (e.target.closest('#textEditToolkit')) return;
+        textEditToolkit.classList.remove('active');
+    }
+}
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 
@@ -94,8 +102,19 @@ canvasContext.font = `${Math.ceil(textCanvas.width / 30)}px Arial`;
 canvasContext.textAlign = "left";
 canvasContext.textBaseline = 'top'; //горизонтальная линия проходящая в самом низу текста или вверху
 canvasContext.fillStyle = "yellow";
-//canvasContext.fillRect(0,0,1920,1080);
-//canvasContext.strokeStyle = 'black';
+
+const recalcMetrics = () => {
+    const onePercent = textCanvas.height / 100;
+    const measureHeight = canvasContext.measureText('Д').actualBoundingBoxDescent; //todo в разных шрифтах высота букв разная. при смене шрифта менять 
+    const lineHeight = (measureHeight * lineSpacing + measureHeight) / onePercent;
+    textEditToolkit.style.height = lineHeight + '%';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => document.documentElement.scrollTop = document.documentElement.scrollHeight, 0);
+    textEditToolkit.style.top = wordsYoffset * 100 + '%';
+    recalcMetrics();
+})
 
 const metrics = canvasContext.measureText('Ночью в поле звезд благодать');
 
@@ -192,7 +211,7 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
     const text = string.join('');
     const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x
     const x = textCanvas.width / 2 - metrics.width / 2;
-    const y = textCanvas.height * .75 + ((stringIndex % 2) ? metrics.actualBoundingBoxDescent * 1.5 : 0);
+    const y = textCanvas.height * wordsYoffset + ((stringIndex % 2) ? metrics.actualBoundingBoxDescent * lineSpacing : 0);
 
     canvasContext.clearRect(0, y, textCanvas.width, metrics.actualBoundingBoxDescent * 1.2);
 
