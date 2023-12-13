@@ -24,13 +24,13 @@
             user-select: none;
             flex: 1 0 auto;
 
-            #textCanvas, #backgroundCanvas, #fillBlock {
+            #textCanvas, #backgroundCanvas, #renderCanvas {
                 max-height: 100%;
                 max-width: 100%;
                 position: absolute;
                 border: 1px solid gray;
             }
-            #fillBlock {
+            #renderCanvas {
                 position: relative;
                 visibility: hidden;
             }
@@ -156,12 +156,11 @@
 <body>
     <div id="main" class="main">
         <div class="canvasWrapper">
-            <canvas id="fillBlock" width="1920" height="1080"></canvas>
+            <canvas id="renderCanvas" width="1920" height="1080"></canvas>
             <canvas id="backgroundCanvas" width="1920" height="1080"></canvas>
             <canvas id="textCanvas" width="1920" height="1080"></canvas>
             <div id="textEditToolkit"></div>
         </div>
-        <canvas id="renderCanvas" hidden></canvas>
     </div>
 
     <div class="bottom">    

@@ -118,6 +118,8 @@ var recorder = new MediaRecorder(stream, {
     videoBitsPerSecond : 250000000,
 });
 
+//если менять размер то всем блокам: backgroundCanvas.height = textCanvas.height = renderCanvas.height = 7000
+
 // let desktopStream;
 // navigator.mediaDevices.getDisplayMedia({video: true})
 //     .then(s => desktopStream = s);
