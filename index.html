@@ -24,28 +24,29 @@
             user-select: none;
             flex: 1 0 auto;
 
-            .text {
-                padding: 0 1em;
-                > p {
-                    margin: 0;
-                    text-align: center;
-                    font-size: 2em;
-
-                    /* > span {
-                        transition-property: color;
-                        transition-duration: .1s;
-                    } */
-                }
-            }
-            #textCanvas, #backgroundCanvas {
+            #textCanvas, #backgroundCanvas, #fillBlock {
                 max-height: 100%;
                 max-width: 100%;
                 position: absolute;
                 border: 1px solid gray;
             }
+            #fillBlock {
+                position: relative;
+                visibility: hidden;
+            }
             #textEditToolkit {
                 position: absolute;
                 width: 100%;
+                top: 0;
+            }
+            .canvasWrapper {
+                overflow: hidden;
+                position: absolute;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                max-height: 100%;
+                max-width: 100%;
             }
         }
         .bottom {
@@ -154,16 +155,13 @@
 </head>
 <body>
     <div id="main" class="main">
-        <canvas id="backgroundCanvas" width="1920" height="1080"></canvas>
-        <canvas id="textCanvas" width="1920" height="1080"></canvas>
-        <canvas id="renderCanvas" hidden></canvas>
-
-        <div id="text" class="text" hidden>
-            <p id="firstString"></p>
-            <p id="secondString"></p>
+        <div class="canvasWrapper">
+            <canvas id="fillBlock" width="1920" height="1080"></canvas>
+            <canvas id="backgroundCanvas" width="1920" height="1080"></canvas>
+            <canvas id="textCanvas" width="1920" height="1080"></canvas>
+            <div id="textEditToolkit"></div>
         </div>
-        
-        <div id="textEditToolkit"></div>
+        <canvas id="renderCanvas" hidden></canvas>
     </div>
 
     <div class="bottom">    

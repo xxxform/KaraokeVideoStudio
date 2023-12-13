@@ -337,6 +337,9 @@ bgfileInput.onchange = e => {
         var img = new Image;
         img.onload = () => {
             bgCanvasContext.drawImage(img, 0, 0);
+            drawString(stringCursor, syllableCursor); //todo может быть баг если stringCursor === -1 
+            if (strings[stringCursor + 1])
+                drawString(stringCursor + 1);
         }
         img.src = URL.createObjectURL(bgfileInput.files[0]);
     }
