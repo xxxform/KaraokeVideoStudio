@@ -43,6 +43,10 @@
                 position: absolute;
                 border: 1px solid gray;
             }
+            #textEditToolkit {
+                position: absolute;
+                width: 100%;
+            }
         }
         .bottom {
            flex: 0 0 auto;
@@ -63,6 +67,16 @@
                 top: 0;
                 left: 0;
                 z-index: 1;
+                #scale {
+                    display: inline-block;
+                    height: 100%;
+                    transition-timing-function: linear;
+                    transition-property: outline;
+                    transition-duration: 0s;
+                }
+                #scale:hover, #scale.active {
+                    outline: 1px dashed grey;
+                }
             }
             #cursor {
                 left: 0%;
@@ -104,6 +118,15 @@
                     align-items: end;
                 }
             }
+            #placeholder {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: -1;
+            }
         }
         .settings {
             overflow-y: auto;
@@ -133,20 +156,23 @@
     <div id="main" class="main">
         <canvas id="backgroundCanvas" width="1920" height="1080"></canvas>
         <canvas id="textCanvas" width="1920" height="1080"></canvas>
-
         <canvas id="renderCanvas" hidden></canvas>
+
         <div id="text" class="text" hidden>
             <p id="firstString"></p>
             <p id="secondString"></p>
         </div>
+        
+        <div id="textEditToolkit"></div>
     </div>
 
     <div class="bottom">    
         <div class="timeline">
+            <div id="placeholder">Нажмите два раза чтобы выбрать аудио</div>
             <div class="buttons">
                 <button id="plus">+</button>
                 <button id="minus">-</button>
-                <span id="scale"></span>
+                <span contenteditable="true" id="scale"></span>
             </div>
             <div id="cursor"></div>
             <div id="words"></div>
@@ -165,15 +191,24 @@
             <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
             <!-- Подозреваю, что для EN придется асинхронно обращаться во вне или скачивать словарь с исключениями-->
             <br> 
-            <textarea id="textarea" cols="30" rows="10"></textarea> <br>    
+            <textarea id="textarea" cols="30" rows="10"></textarea> <br> 
+            
+            <div>
+                Размер видео
+                <input type="number" value="1920" id="videoSizeX">x<input type="number" value="1080" id="videoSizeY">
+            </div> <br> 
 
-            <div class="source">
-                <label>Файл <input type="file" id="fileInput" accept="audio/*"/></label> <br>
+            <div class="source" hidden>
+                <label>Минусовка <br><input type="file" id="fileInput" accept="audio/*"/></label> <br>
                 <label>Ссылка<input type="text"></label>
             </div>
 
+            <div>
+                <label>Фон(изображение/видео)<br><input type="file" id="bgfileInput" accept="image/*"/></label> <br>
+                <label>Размер <input type="number" value="100" id="bgSize">%</label>
+            </div> <br>
+
             <label>Цвет фона <input type="color" id="backgroundColor" value="#00ff00"></label> <br>
-            <label>Прозрачность фона <input type="range" value="0" id="backgroundOpacity"></label> <br>
             
             <label>Шрифт <select id="fontFamily">
                 <option value="Arial">Arial</option>

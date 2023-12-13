@@ -46,7 +46,48 @@ let spanSyllableMap = new WeakMap();
 
 //при рендере написать сообщение. Пожалйста дождитесь окончания рендера, не закрывайте вкладку(иначе reqFrame заморозится)
 //использовать api Screen Wake Lock API  кофе чтобы не заснула   
-//!!!!
+
+//todo интерактивный редактор шрифта на холсте, мини toolpicker.
+//сделать так, чтобы этот div был всегда, но клик на нее не срабатывал при !started
+//если при !started кликнули в области canvas .75(перенести в переменную) + metrics.actualBoundingBoxDescent + lineSpase + metrics.actualBoundingBoxDescent
+//появляется прямоугольная область с шириной в canvas и высотой в строки. 
+//Она draggable, её можно перемещать по оси y. При этом перемещается текст по оси y согласно новой координате div top
+//Вверху слева этой области или по центру toolbar. 
+//в нём: карандашик(вызов редактора текста), шрифт, цвет закрашенных/не слогов, цвет подложки
+//Если потянуть область за верхний край - изменится lineSpacing. За нижний - размер шрифта
+
+//по умолчанию написать в канвас "Введите \n текст" или Text\nText
+//растянуть невидимый inputFile на всю ширину canvas при первоначальной загрузке чтобы кликнув на него 
+//или найти способ ручного вызова меню выбора файла при клике любого элемента
+
+//input audio растянуть
+
+//todo выбрать шрифт интерфейса
+
+//При клике на картинку. появляется draggable div представитель картинки. по центру canvas появляется input#size
+
+//нужно ли видео.
+//что представляет из себя большинство задних планов караоке видео
+//статичная картинка опционально с эффектами(kalinka)
+//движущийся фон типа космос и орнаменты(karaoke4u)
+//клип или видео(черевато баном youtube, т.к. с него же видео и берутся)
+//если у человека есть видео значит он продвинутый пользователь т.е. может скачивать видео,
+//пользоваться видеоредактором и использовать хромокей. 
+//Значит он может здесь создать видео с ритмическим караоке текстом, удалить хромокей в видеоредакторе и вставить свое видео
+//видео в планах extra
+
+//Откудать брать аудио. Если есть аудио то с него(в приоритете). Если аудио нет а есть видео, берём с видео. 
+//аудио controls при наличии видео управляет и видео
+//Показывать плейсхолдер и срабатывать этот обработчик только тогда
+//когда  пуст
+
+words.ondblclick = e => {
+    fileInput.click();
+}
+
+document.addEventListener('DOMContentLoaded', () => setTimeout(() => document.documentElement.scrollTop = document.documentElement.scrollHeight, 0))
+
+var bgCanvasContext = backgroundCanvas.getContext("2d");
 
 var canvasContext = textCanvas.getContext("2d");
 canvasContext.font = `${Math.ceil(textCanvas.width / 30)}px Arial`;
@@ -145,7 +186,6 @@ async function getDesktop() {
 //canvas.onclick = run;
 
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
-    
     const string = strings[stringIndex].map(({syllable}) => syllable);
     const text = string.join('');
     const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x
@@ -288,7 +328,18 @@ fileInput.onchange = () => {
             showStringsByPosition();
             showTimeline(audio.currentTime, timelineDuration);
         }
+        placeholder.style.display = 'none';
     }   
+}
+
+bgfileInput.onchange = e => {
+    if (bgfileInput.files[0]) {
+        var img = new Image;
+        img.onload = () => {
+            bgCanvasContext.drawImage(img, 0, 0);
+        }
+        img.src = URL.createObjectURL(bgfileInput.files[0]);
+    }
 }
 
 // strings[0][0].element.before(document.createElement('div')) вставит div перед span.  
@@ -409,17 +460,46 @@ const showTimeline = (from, duration) => {
 toggleSettingsButton.onclick = () => {
     settingsContent.style.display = settingsContent.style.display ? '' : 'block';
 }
-//toggleSettingsButton.click();
+//toggleSettingsButton.click(); 
 
-plus.onclick = () => {
+const updateTimelineDuration = () => {
     clearTimeout(timelineTimer);
-    showTimeline(audio.currentTime, +(scale.textContent = timelineDuration -= 3), true);
+    showTimeline(audio.currentTime, timelineDuration);
     if (started) requestAnimationFrame(runCursor);
 }
+
+scale.oninput = e => {
+    const newVal = +scale.textContent;
+    if (!newVal || newVal < 1) return;
+    timelineDuration = newVal;
+}
+
+plus.onclick = () => {
+    const newVal = timelineDuration - 3;
+    if (newVal < 1) return;
+    scale.textContent = timelineDuration = newVal;
+    updateTimelineDuration();
+}
 minus.onclick = () => {
-    clearTimeout(timelineTimer);
-    showTimeline(audio.currentTime, +(scale.textContent = timelineDuration += 3), true);
-    if (started) requestAnimationFrame(runCursor);
+    scale.textContent = timelineDuration += 3;
+
+    //todo анимация подсветки возможности ввода через outline
+    //scale.classList.add('active');
+    
+    // scale.style.transitionDuration = 0 + 's';
+    // scale.classList.add('active');
+
+    // requestAnimationFrame(() => {
+    //     scale.style.transitionDuration = 2 + 's';
+    //     requestAnimationFrame(() => {
+    //         setTimeout(() => {
+    //             scale.classList.remove('active');
+    //             setTimeout(() => {
+    //                 scale.style.transitionDuration = 0 + 's';
+    //             }, 1000);
+    //         }, 1000)
+    //     });
+    // });
 }
 
 audio.onplay = e => {
