@@ -1,7 +1,10 @@
 let started = false;
-let strings = []; 
+let strings = [
+    [{syllable: 'Вве', time: -1}, {syllable: 'ди', time: -1}, {syllable: 'те ', time: -1}, {syllable: 'те', time: -1}, {syllable: 'кст', time: -1}],
+    [{syllable: 'En', time: -1}, {syllable: 'ter ', time: -1}, {syllable: 'the ', time: -1}, {syllable: 'text', time: -1}]
+]; 
 let syllableCursor = -1;
-let stringCursor = -1;
+let stringCursor = 0;
 let isSecondString = false;
 let timer = -1;
 let timelineDuration = scale.textContent = 10; //в секундах
@@ -10,9 +13,21 @@ let timelineTimer = -1;
 let spanSyllableMap = new WeakMap();
 let wordsYoffset = .75;
 let lineSpacing = 1.5;
+let fontSize = 8;
+
+var bgCanvasContext = backgroundCanvas.getContext("2d");
+var canvasContext = textCanvas.getContext("2d");
+//canvasContext.font = `${fontSize}vh Arial`;
+canvasContext.font = `${Math.ceil(textCanvas.width / 24)}px Arial`;
+canvasContext.textAlign = "left";
+canvasContext.textBaseline = 'top'; //горизонтальная линия проходящая в самом низу текста или вверху
+canvasContext.fillStyle = "yellow";
+
+//todo закешируй prevString. и если текущая строка !== prevString то пересчитать метрики. Их тоже закешировать
+//todo размер шрифта можно указывать как vh или vw
+//todo после изменения размеров холста весь canvas сбрасывается и старый ctx больше недоступен. также заново нужно задавать стили шрифта и всего что в общем потоке здесь объявлено
+
 //проблемы с буковй ё. остаё не делится на два слога
-//todo нижняя редактируемая линейка слов
-//одно поле ввод посредине. 
 //todo тест мобильной версии
 //фоновая картинка 
 //настройки скрыть за троеточием
@@ -54,7 +69,7 @@ let lineSpacing = 1.5;
 //появляется прямоугольная область с шириной в canvas и высотой в строки. 
 //Она draggable, её можно перемещать по оси y. При этом перемещается текст по оси y согласно новой координате div top
 //Вверху слева этой области или по центру toolbar. 
-//в нём: карандашик(вызов редактора текста), шрифт, цвет закрашенных/не слогов, цвет подложки
+//в нём: карандашик(вызов редактора текста), шрифт, lineSpacing, цвет закрашенных/не слогов, цвет подложки
 //Если потянуть область за верхний край - изменится lineSpacing. За нижний - размер шрифта
 
 //по умолчанию написать в канвас "Введите \n текст" или Text\nText
@@ -82,26 +97,79 @@ let lineSpacing = 1.5;
 //Показывать плейсхолдер и срабатывать этот обработчик только тогда
 //когда  пуст
 
+const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
+    const string = strings[stringIndex].map(({syllable}) => syllable);
+    const text = string.join('');
+    const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x
+    const x = textCanvas.width / 2 - metrics.width / 2;
+    const y = textCanvas.height * wordsYoffset + ((stringIndex % 2) ? metrics.actualBoundingBoxDescent * lineSpacing : 0); //todo после перехода на vh удалить привязку к metrics
+    const halfOfLineSpacing = (metrics.actualBoundingBoxDescent * lineSpacing / 2);
+
+    // if (stringIndex % 2) 
+    //     canvasContext.clearRect(0, y - halfOfLineSpacing / 2, textCanvas.width, textCanvas.height); //вторая строка
+    // else 
+    //     canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height * wordsYoffset + halfOfLineSpacing); //первая строка
+    canvasContext.clearRect(0, y, textCanvas.width, metrics.actualBoundingBoxDescent * 1.2);
+
+    canvasContext.fillStyle = "yellow";
+    canvasContext.fillText(text, x, y);
+
+    if (~toSyllableIndex) {
+        const substring = string.slice(0, toSyllableIndex + 1).join('');
+        canvasContext.fillStyle = "red";
+        canvasContext.fillText(substring, x, y);
+        canvasContext.strokeStyle = 'red';
+        canvasContext.strokeText(substring, x, y);
+    } 
+    return metrics;
+}
+
+drawString(0);
+drawString(1);
+
 words.ondblclick = e => {
     fileInput.click();
 }
 
+const getYPersent = y => {
+    
+}
+
 textEditToolkit.onclick = () => {
-    if (started) return;
+    if (started || textEditToolkit.classList.contains('active')) return;
     textEditToolkit.classList.add('active');
+
+    const removeHandlers = () => {
+        textEditToolkit.firstElementChild.style.display = '';
+        textEditToolkit.onmousemove = textEditToolkit.ontouchmove = document.body.onmouseup = document.body.ontouchend = null;
+    }
+
+    const wrapper = textEditToolkit.parentElement.getBoundingClientRect();
+
+    textEditToolkit.onmousedown = textEditToolkit.ontouchstart = e => {
+        const tapY = (e.y || e.targetTouches[0].clientY) - wrapper.y;
+        const spanY = e.target.getBoundingClientRect().y - wrapper.y
+        const pxToSpan = tapY - spanY;
+        //перетаскивая вниз на мобильном появляется шторка
+        textEditToolkit.firstElementChild.style.display = 'none';
+        textEditToolkit.onmousemove = textEditToolkit.ontouchmove = moveEvent => {
+            const y = (moveEvent.y || (moveEvent.targetTouches[0].clientY)) - wrapper.y - pxToSpan;
+            const newPercent = y / (wrapper.height / 100);
+            textEditToolkit.style.top = newPercent + '%';
+            wordsYoffset = newPercent / 100;
+            canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
+            drawString(stringCursor, syllableCursor); //todo может быть баг если stringCursor === -1 
+            if (strings[stringCursor + 1]) drawString(stringCursor + 1);
+        }
+        document.body.onmouseup = document.body.ontouchend = removeHandlers;
+    }
+    
     document.body.onclick = e => {
-        if (e.target.closest('#textEditToolkit')) return;
+        if (e.target.closest('#textEditToolkit') || e.target.closest('#toolbar')) return;
+        removeHandlers();
         textEditToolkit.classList.remove('active');
     }
 }
-
-var bgCanvasContext = backgroundCanvas.getContext("2d");
-
-var canvasContext = textCanvas.getContext("2d");
-canvasContext.font = `${Math.ceil(textCanvas.width / 30)}px Arial`;
-canvasContext.textAlign = "left";
-canvasContext.textBaseline = 'top'; //горизонтальная линия проходящая в самом низу текста или вверху
-canvasContext.fillStyle = "yellow";
 
 const recalcMetrics = () => {
     const onePercent = textCanvas.height / 100;
@@ -205,28 +273,6 @@ async function getDesktop() {
 }
 
 //canvas.onclick = run;
-
-const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
-    const string = strings[stringIndex].map(({syllable}) => syllable);
-    const text = string.join('');
-    const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x
-    const x = textCanvas.width / 2 - metrics.width / 2;
-    const y = textCanvas.height * wordsYoffset + ((stringIndex % 2) ? metrics.actualBoundingBoxDescent * lineSpacing : 0);
-
-    canvasContext.clearRect(0, y, textCanvas.width, metrics.actualBoundingBoxDescent * 1.2);
-
-    canvasContext.fillStyle = "yellow";
-    canvasContext.fillText(text, x, y);
-
-    if (~toSyllableIndex) {
-        const substring = string.slice(0, toSyllableIndex + 1).join('');
-        canvasContext.fillStyle = "red";
-        canvasContext.fillText(substring, x, y);
-        canvasContext.strokeStyle = 'red';
-        canvasContext.strokeText(substring, x, y);
-    } 
-    return metrics;
-}
 
 const updateLocalStorage = () => {
     if (fileInput.files[0])

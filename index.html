@@ -39,6 +39,17 @@
                 width: 100%;
                 top: 0;
             }
+            #textEditToolkit.active {
+                border: 1px dashed grey;
+            }
+            #toolbar {
+                top: 0;
+                display: none;
+                position: absolute;
+            }
+            #textEditToolkit.active + #toolbar {
+                display: block;
+            }
             .canvasWrapper {
                 overflow: hidden;
                 position: absolute;
@@ -159,9 +170,33 @@
             <canvas id="renderCanvas" width="1920" height="1080"></canvas>
             <canvas id="backgroundCanvas" width="1920" height="1080"></canvas>
             <canvas id="textCanvas" width="1920" height="1080"></canvas>
+            
             <div id="textEditToolkit">
-                
+                <div class="content">
+                </div>
             </div>
+            <div id="toolbar">
+                Текст
+                <select id="fontFamily">
+                    <option value="Arial">Arial</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Helvetica">Helvetica</option>
+                    <option value="Tahoma">Tahoma</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Trebuchet MS">Trebuchet MS</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Garamond">Garamond</option>
+                    <option value="Palatino Linotype">Palatino Linotype</option>
+                    <option value="Brush Script MT">Brush Script MT</option>
+                </select>
+                <input type="color" title="Цвет незакрашенных слогов" id="rightSyllableColor">
+                <input type="color" title="Цвет закрашенных слогов" id="leftSyllableColor"> <br>
+                Подложка
+                <input type="color" title="Цвет подложки" id="bgColor">
+                <input type="range" title="Прозрачность подложки" id="bgOpacity">
+            </div>
+            
         </div>
     </div>
 
@@ -209,25 +244,9 @@
 
             <label>Цвет фона <input type="color" id="backgroundColor" value="#00ff00"></label> <br>
             
-            <label>Шрифт <select id="fontFamily">
-                <option value="Arial">Arial</option>
-                <option value="Verdana">Verdana</option>
-                <option value="Times New Roman">Times New Roman</option>
-                <option value="Helvetica">Helvetica</option>
-                <option value="Tahoma">Tahoma</option>
-                <option value="Courier New">Courier New</option>
-                <option value="Trebuchet MS">Trebuchet MS</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Garamond">Garamond</option>
-                <option value="Palatino Linotype">Palatino Linotype</option>
-                <option value="Brush Script MT">Brush Script MT</option>
-            </select>
-            </label> <br>
+            <br>
             <label>Размер шрифта<input type="number" name="" id="fontSize"></label> <br>
             <label>Межстрочный интервал <input type="number" name="" id="lineSpacing"></label> <br>
-            <label>Цвет незакрашенных слогов <input type="color" id="rightSyllableColor"></label> <br>
-            <label>Цвет закрашенных слогов <input type="color" id="leftSyllableColor"></label> <br>
-
         </div>
     </div>
 </body>
