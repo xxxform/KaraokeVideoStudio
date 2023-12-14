@@ -24,7 +24,7 @@
             user-select: none;
             flex: 1 0 auto;
 
-            #textCanvas, #backgroundCanvas, #renderCanvas {
+            #textCanvas, #backgroundCanvas, #renderCanvas, #padCanvas {
                 max-height: 100%;
                 max-width: 100%;
                 position: absolute;
@@ -169,6 +169,7 @@
         <div class="canvasWrapper">
             <canvas id="renderCanvas" width="1920" height="1080"></canvas>
             <canvas id="backgroundCanvas" width="1920" height="1080"></canvas>
+            <canvas id="padCanvas" width="1920" height="1080"></canvas>
             <canvas id="textCanvas" width="1920" height="1080"></canvas>
             
             <div id="textEditToolkit">

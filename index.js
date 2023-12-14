@@ -17,6 +17,7 @@ let fontSize = 8;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
+var padCanvasContext = padCanvas.getContext("2d");
 //canvasContext.font = `${fontSize}vh Arial`;
 canvasContext.font = `${Math.ceil(textCanvas.width / 24)}px Arial`;
 canvasContext.textAlign = "left";
@@ -96,6 +97,15 @@ canvasContext.fillStyle = "yellow";
 //аудио controls при наличии видео управляет и видео
 //Показывать плейсхолдер и срабатывать этот обработчик только тогда
 //когда  пуст
+
+const drawPad = () => {
+    padCanvasContext.clearRect(0, 0, padCanvas.width, padCanvas.height)
+    padCanvasContext.fillStyle = bgColor.value;
+    padCanvasContext.globalAlpha = bgOpacity.value / 100;
+    padCanvasContext.fillRect(0, backgroundCanvas.height * wordsYoffset, padCanvas.width, 50);
+}
+
+bgColor.oninput = bgOpacity.oninput = drawPad;
 
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
     const string = strings[stringIndex].map(({syllable}) => syllable);
