@@ -34,23 +34,39 @@
                 position: relative;
                 visibility: hidden;
             }
+            #bgEditToolkit {
+                position: absolute;
+                width: 95%;
+                height: 90%;
+            }
             #textEditToolkit {
                 position: absolute;
                 width: 100%;
                 top: 0;
             }
-            #textEditToolkit.active {
+            #textEditToolkit.active, #bgEditToolkit.active {
                 border: 1px dashed grey;
             }
-            #toolbar {
+            #toolbarElem {
                 background: rgba(0,0,0,.7);
                 padding: 0.7em;
                 top: 0;
                 display: none;
                 position: absolute;
+                .text, .background {
+                    display: none;
+                }
+                .background > #bgSize{
+                    width: 4em;
+                }
             }
-            #textEditToolkit.active + #toolbar {
+            #textEditToolkit.active ~ #toolbarElem {
                 display: block;
+                .text { display: block }
+            }
+            #bgEditToolkit.active ~ #toolbarElem {
+                display: block;
+                .background {display: block }
             }
             .canvasWrapper {
                 overflow: hidden;
@@ -174,30 +190,43 @@
             <canvas id="padCanvas" width="1920" height="1080"></canvas>
             <canvas id="textCanvas" width="1920" height="1080"></canvas>
             
+            <div id="bgEditToolkit">
+                <div class="content">
+                </div>
+            </div>
+
             <div id="textEditToolkit">
                 <div class="content">
                 </div>
             </div>
-            <div id="toolbar">
-                Текст
-                <select id="fontFamily">
-                    <option value="Arial">Arial</option>
-                    <option value="Verdana">Verdana</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Tahoma">Tahoma</option>
-                    <option value="Courier New">Courier New</option>
-                    <option value="Trebuchet MS">Trebuchet MS</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Garamond">Garamond</option>
-                    <option value="Palatino Linotype">Palatino Linotype</option>
-                    <option value="Brush Script MT">Brush Script MT</option>
-                </select>
-                <input type="color" title="Цвет незакрашенных слогов" id="rightSyllableColor">
-                <input type="color" title="Цвет закрашенных слогов" id="leftSyllableColor"> <br>
-                Подложка
-                <input type="color" title="Цвет подложки" id="bgColor">
-                <input type="range" title="Прозрачность подложки" id="bgOpacity">
+
+            <div id="toolbarElem">
+                <div class="text">
+                    Текст
+                    <select id="fontFamily">
+                        <option value="Arial">Arial</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Tahoma">Tahoma</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Trebuchet MS">Trebuchet MS</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Garamond">Garamond</option>
+                        <option value="Palatino Linotype">Palatino Linotype</option>
+                        <option value="Brush Script MT">Brush Script MT</option>
+                    </select>
+                    <input type="color" title="Цвет незакрашенных слогов" id="rightSyllableColor">
+                    <input type="color" title="Цвет закрашенных слогов" id="leftSyllableColor"> <br>
+                    Подложка
+                    <input type="color" title="Цвет подложки" id="bgColor">
+                    <input type="range" title="Прозрачность подложки" id="bgOpacity">
+                </div>
+                <div class="background">
+                    <input type="color" id="backgroundColor" value="#00ff00">
+                    <input type="number" value="100" id="bgSize">%<br>
+                    <input type="file" title="изображение/видео" id="bgfileInput" hidden accept="image/*, video/*"/>
+                </div>
             </div>
             
         </div>
@@ -239,13 +268,6 @@
                 <label>Минусовка <br><input type="file" id="fileInput" accept="audio/*"/></label> <br>
                 <label>Ссылка<input type="text"></label>
             </div>
-
-            <div>
-                <label>Фон(изображение/видео)<br><input type="file" id="bgfileInput" accept="image/*"/></label> <br>
-                <label>Размер <input type="number" value="100" id="bgSize">%</label>
-            </div> <br>
-
-            <label>Цвет фона <input type="color" id="backgroundColor" value="#00ff00"></label> <br>
             
             <br>
             <label>Размер шрифта<input type="number" name="" id="fontSize"></label> <br>

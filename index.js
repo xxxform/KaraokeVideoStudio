@@ -14,6 +14,9 @@ let spanSyllableMap = new WeakMap();
 let wordsYoffset = .75;
 let lineSpacing = 1.4;
 let fontSize = 8;
+let bgX = 0;
+let bgY = 0;
+let bgSize = 100;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -139,12 +142,49 @@ const drawPad = () => {
 
 bgColor.oninput = bgOpacity.oninput = drawPad;
 
+bgEditToolkit.onclick = () => {
+    if (started || bgEditToolkit.classList.contains('active')) return;
+    bgEditToolkit.classList.add('active');
+
+    bgEditToolkit.ondblclick = () => {
+        bgfileInput.click();
+    }
+
+    const removeHandlers = () => {
+        toolbarElem.style.display = '';
+        bgEditToolkit.onmousemove = bgEditToolkit.ontouchmove = document.body.onmouseup = document.body.ontouchend = null;
+    }
+
+    bgEditToolkit.onmousedown = bgEditToolkit.ontouchstart = e => {
+        let tapY = (e.y || e.targetTouches[0].clientY);
+        let tapX = (e.x || e.targetTouches[0].clientX);
+  
+        toolbarElem.style.display = 'none';
+
+        bgEditToolkit.onmousemove = bgEditToolkit.ontouchmove = moveEvent => {
+            const x = (moveEvent.x || moveEvent.targetTouches[0].clientX);
+            const y = (moveEvent.y || moveEvent.targetTouches[0].clientY);
+
+            bgCanvasContext.clearRect(0, 0, bgCanvasContext.width, bgCanvasContext.height);
+        }
+        document.body.onmouseup = document.body.ontouchend = removeHandlers;
+    }
+    
+    document.body.onclick = e => {
+        if (e.target.closest('#bgEditToolkit') || e.target.closest('#toolbarElem')) return;
+        bgEditToolkit.ondblclick = null;
+        removeHandlers();
+        bgEditToolkit.classList.remove('active');
+    }
+
+}
+
 textEditToolkit.onclick = () => {
     if (started || textEditToolkit.classList.contains('active')) return;
     textEditToolkit.classList.add('active');
 
     const removeHandlers = () => {
-        textEditToolkit.firstElementChild.style.display = '';
+        toolbarElem.style.display = '';
         textEditToolkit.onmousemove = textEditToolkit.ontouchmove = document.body.onmouseup = document.body.ontouchend = null;
     }
 
@@ -155,7 +195,7 @@ textEditToolkit.onclick = () => {
         const spanY = e.target.getBoundingClientRect().y - wrapper.y
         const pxToSpan = tapY - spanY;
         //перетаскивая вниз на мобильном появляется шторка
-        textEditToolkit.firstElementChild.style.display = 'none';
+        toolbarElem.style.display = 'none';
         textEditToolkit.onmousemove = textEditToolkit.ontouchmove = moveEvent => {
             const y = (moveEvent.y || (moveEvent.targetTouches[0].clientY)) - wrapper.y - pxToSpan;
             const newPercent = y / (wrapper.height / 100);
@@ -170,7 +210,7 @@ textEditToolkit.onclick = () => {
     }
     
     document.body.onclick = e => {
-        if (e.target.closest('#textEditToolkit') || e.target.closest('#toolbar')) return;
+        if (e.target.closest('#textEditToolkit') || e.target.closest('#toolbarElem')) return;
         removeHandlers();
         textEditToolkit.classList.remove('active');
     }
@@ -393,7 +433,12 @@ fileInput.onchange = () => {
 }
 
 bgfileInput.onchange = e => {
-    if (bgfileInput.files[0]) {
+    const file = bgfileInput.files[0];
+    if (file) {
+        if (file.type.includes('video')) {
+            
+            return;
+        } 
         var img = new Image;
         img.onload = () => {
             bgCanvasContext.drawImage(img, 0, 0);
@@ -401,7 +446,7 @@ bgfileInput.onchange = e => {
             if (strings[stringCursor + 1])
                 drawString(stringCursor + 1);
         }
-        img.src = URL.createObjectURL(bgfileInput.files[0]);
+        img.src = URL.createObjectURL(file);
     }
 }
 
