@@ -16,7 +16,7 @@ let lineSpacing = 1.4;
 let fontSize = 8;
 let bgX = 0;
 let bgY = 0;
-let bgSize = 100;
+var img = new Image;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -60,6 +60,7 @@ canvasContext.fillStyle = "yellow";
 //перемотка двигает курсор и не перерисовывает таймлайн пока курсор не выйдет за его пределы по времени
 
 //todo extra
+//мультитач жест zoom для увеличения размера шрифта
 //extra возможность добавить фоновое видео
 //при удержании пальца/кнопки слог тянется
 //мультивыделение при удержании
@@ -140,6 +141,12 @@ const drawPad = () => {
     padCanvasContext.fillRect(0, backgroundCanvas.height * wordsYoffset - measure / 3, padCanvas.width, (measure * lineSpacing + measure) + measure / 3 * 2);
 }
 
+const drawBackground = () => {
+    bgCanvasContext.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+    if (img)
+        bgCanvasContext.drawImage(img, bgX, bgY, img.width * (bgSize.value / 100), img.height * (bgSize.value / 100)); 
+}
+
 bgColor.oninput = bgOpacity.oninput = drawPad;
 
 bgEditToolkit.onclick = () => {
@@ -152,7 +159,9 @@ bgEditToolkit.onclick = () => {
 
     const removeHandlers = () => {
         toolbarElem.style.display = '';
-        bgEditToolkit.onmousemove = bgEditToolkit.ontouchmove = document.body.onmouseup = document.body.ontouchend = null;
+        document.body.removeEventListener('mouseup', removeHandlers);
+        document.body.removeEventListener('touchend', removeHandlers);
+        bgEditToolkit.onmousemove = bgEditToolkit.ontouchmove = null;
     }
 
     bgEditToolkit.onmousedown = bgEditToolkit.ontouchstart = e => {
@@ -164,15 +173,24 @@ bgEditToolkit.onclick = () => {
         bgEditToolkit.onmousemove = bgEditToolkit.ontouchmove = moveEvent => {
             const x = (moveEvent.x || moveEvent.targetTouches[0].clientX);
             const y = (moveEvent.y || moveEvent.targetTouches[0].clientY);
+            
+            bgX += x - tapX;
+            bgY += y - tapY;
 
-            bgCanvasContext.clearRect(0, 0, bgCanvasContext.width, bgCanvasContext.height);
+            drawBackground();
+
+            tapX = x;
+            tapY = y;
         }
-        document.body.onmouseup = document.body.ontouchend = removeHandlers;
+        document.body.addEventListener('mouseup', removeHandlers);
+        document.body.addEventListener('touchend', removeHandlers);
     }
+
+    
     
     document.body.onclick = e => {
         if (e.target.closest('#bgEditToolkit') || e.target.closest('#toolbarElem')) return;
-        bgEditToolkit.ondblclick = null;
+        bgEditToolkit.ondblclick = bgEditToolkit.onmousedown = bgEditToolkit.ontouchstart = document.body.onmouseup = document.body.ontouchend = null;
         removeHandlers();
         bgEditToolkit.classList.remove('active');
     }
@@ -209,8 +227,9 @@ textEditToolkit.onclick = () => {
         document.body.onmouseup = document.body.ontouchend = removeHandlers;
     }
     
-    document.body.onclick = e => {
+    document.body.onmousedown = document.body.ontouchstart = e => {
         if (e.target.closest('#textEditToolkit') || e.target.closest('#toolbarElem')) return;
+        textEditToolkit.onmousedown = textEditToolkit.ontouchstart = null;
         removeHandlers();
         textEditToolkit.classList.remove('active');
     }
@@ -223,7 +242,19 @@ const recalcMetrics = () => {
     textEditToolkit.style.height = lineHeight + '%';
 }
 
+bgSize.oninput = () => {
+    if (!+bgSize.value) return;
+    drawBackground();
+}
+
+backgroundColor.oninput = () => {
+    bgCanvasContext.fillStyle = backgroundColor.value;
+    drawBackground()
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    bgCanvasContext.fillStyle = backgroundColor.value;
+    
     drawPad();
     drawString(0);
     drawString(1);
@@ -232,71 +263,90 @@ document.addEventListener('DOMContentLoaded', () => {
     recalcMetrics();
 })
 
-var stream = renderCanvas.captureStream(); 
-//если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps
-var recorder = new MediaRecorder(stream, {
-    videoBitsPerSecond : 250000000,
-});
+const run = async () => {
+    //const desktop = streamToVideo(desktopStream);
 
-//если менять размер то всем блокам: backgroundCanvas.height = textCanvas.height = renderCanvas.height = 7000
-
-// let desktopStream;
-// navigator.mediaDevices.getDisplayMedia({video: true})
-//     .then(s => desktopStream = s);
-
-// const run = async () => {
-//     const suggestedName = "screen-recording.webm";
-//     const handle = await window.showSaveFilePicker(
-//         { suggestedName }
-//     );
-//     const writable = await handle.createWritable();
-
-//     const desktop = streamToVideo(desktopStream);
-
-//     const context = renderCanvas.getContext('2d');
-//     renderCanvas.width = 1920;
-//     renderCanvas.height = 1080;
-
-//     //var textStream = canvas.captureStream(30); 
-
-//     (function draw() {
-//         context.drawImage(desktop, 0, 0, 1920, 1080);
-//         context.drawImage(canvas, 0, 0, canvas.width, canvas.height);
-
-//         requestAnimationFrame(draw);
-//     })();
+    video = document.createElement('video');
+    video.srcObject = desktopStream;
+    video.play();
     
-//     // Начать запись экрана
-//     recorder.start();
-//     recorder.addEventListener(
-//         "dataavailable",
-//         async (event) => {
-//         // Запись фрагментов в файл
-//         await writable.write(event.data);
-//         if (recorder.state === "inactive") {
-//             // Закрыть файл,
-//             // когда запись остановится
-//             await writable.close();
-//         }
-//     });
+    //const context = renderCanvas.getContext('2d');
+    // renderCanvas.width = 1920;
+    // renderCanvas.height = 1080;
+    
+    (function draw() {
+        bgCanvasContext.drawImage(video, 0, 0, 1920, 1080);
+        requestAnimationFrame(draw);
+    })();
 
-//     setTimeout(() => {
-//         recorder.stop();
-//         stream.getTracks().forEach((track) => {
-//             track => track.stop();
-//         });
-//     }, 10000);
-// };
+    
+
+    //var textStream = canvas.captureStream(30); 
+
+    // (function draw() {
+    //     context.drawImage(desktop, 0, 0, 1920, 1080);
+    //     context.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+
+    //     requestAnimationFrame(draw);
+    // })();
+    
+
+};
+
+//toggleSettingsButton.onclick = run;
+render.onclick = async () => {
+    const name = fileInput.files[0].name;
+    const fileName = name.slice(0, name.lastIndexOf('.'))
+    const suggestedName = fileName + "(Караоке).webm";
+    const handle = await window.showSaveFilePicker({ suggestedName });
+    const writable = await handle.createWritable();
+
+    // var [stream] = renderCanvas.captureStream().getVideoTracks(); 
+    // var [audioStream] = audio.captureStream().getAudioTracks();
+    const canvasStream = renderCanvas.captureStream();
+    canvasStream.addTrack(audio.captureStream().getAudioTracks()[0]);
+
+    //если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps
+    var recorder = new MediaRecorder(/*new MediaStream([stream, audioStream])*/canvasStream, {
+        videoBitsPerSecond : 250000000, mimeType: 'video/webm;codecs=vp9' //MediaRecorder.isTypeSupported('video/mpeg')
+    });
+    const renderCanvasContext = renderCanvas.getContext('2d');
+
+    recorder.addEventListener("dataavailable", async (event) => {
+        await writable.write(event.data);
+        if (recorder.state === "inactive") {
+            await writable.close();
+        }
+    });
+
+    audio.addEventListener('pause', function stopRecord(){
+        recorder.stop();
+        canvasStream.getTracks().forEach(track => track.stop());
+        audio.removeEventListener('pause', stopRecord);
+    });
+
+    (function draw() { //todo оптимизация. при img фоне можно снять наложение pad на bg
+        renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
+        renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+        renderCanvasContext.drawImage(textCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+        requestAnimationFrame(draw);
+    })();
+    audio.currentTime = 0;
+    recorder.start();
+    audio.play();
+};
+
+ //если менять размер то всем блокам: backgroundCanvas.height = textCanvas.height = renderCanvas.height = 7000
 
 function streamToVideo(stream) {
     let video = document.createElement('video');
-
     video.srcObject = stream;
-
-    video.style.width = stream.width;
-    video.style.height = stream.height;
-
     video.play();
+
+    // video.style.width = stream.width;
+    // video.style.height = stream.height;
+
+    
 
     return video;
 }
@@ -304,8 +354,6 @@ function streamToVideo(stream) {
 async function getDesktop() {
     return await navigator.mediaDevices.getDisplayMedia({video: true});
 }
-
-//canvas.onclick = run;
 
 const updateLocalStorage = () => {
     if (fileInput.files[0])
@@ -439,12 +487,13 @@ bgfileInput.onchange = e => {
             
             return;
         } 
-        var img = new Image;
+        
         img.onload = () => {
-            bgCanvasContext.drawImage(img, 0, 0);
-            drawString(stringCursor, syllableCursor); //todo может быть баг если stringCursor === -1 
-            if (strings[stringCursor + 1])
-                drawString(stringCursor + 1);
+            bgCanvasContext.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+            bgX = bgY = 0;
+            bgCanvasContext.drawImage(img, 0, 0); 
+            //todo extra сжать по ширине и высоте до полного экрана, установить size
+            bgEditToolkit.firstElementChild.style.display = 'none';
         }
         img.src = URL.createObjectURL(file);
     }

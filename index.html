@@ -36,8 +36,9 @@
             }
             #bgEditToolkit {
                 position: absolute;
-                width: 95%;
+                width: 100%;
                 height: 90%;
+                .content {display: none}
             }
             #textEditToolkit {
                 position: absolute;
@@ -46,6 +47,12 @@
             }
             #textEditToolkit.active, #bgEditToolkit.active {
                 border: 1px dashed grey;
+            }
+            #bgEditToolkit.active {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                .content {display: block}
             }
             #toolbarElem {
                 background: rgba(0,0,0,.7);
@@ -56,7 +63,10 @@
                 .text, .background {
                     display: none;
                 }
-                .background > #bgSize{
+                .background > input[type="number"]{
+                    width: 4em;
+                } 
+                .text > input {
                     width: 4em;
                 }
             }
@@ -192,6 +202,7 @@
             
             <div id="bgEditToolkit">
                 <div class="content">
+                    Нажмите два раза чтобы выбрать фоновое аудио или видео
                 </div>
             </div>
 
@@ -216,16 +227,28 @@
                         <option value="Palatino Linotype">Palatino Linotype</option>
                         <option value="Brush Script MT">Brush Script MT</option>
                     </select>
+                    <input type="number" id="fontSize">px 
                     <input type="color" title="Цвет незакрашенных слогов" id="rightSyllableColor">
-                    <input type="color" title="Цвет закрашенных слогов" id="leftSyllableColor"> <br>
+                    <input type="color" title="Цвет закрашенных слогов" id="leftSyllableColor"> 
+                  
+                    
+                    ↕<input type="number" id="lineSpacing"> <br>
+                    <br>
                     Подложка
                     <input type="color" title="Цвет подложки" id="bgColor">
                     <input type="range" title="Прозрачность подложки" id="bgOpacity">
                 </div>
+
                 <div class="background">
-                    <input type="color" id="backgroundColor" value="#00ff00">
-                    <input type="number" value="100" id="bgSize">%<br>
+                    <input type="number" value="1920" id="videoSizeX">x<input type="number" value="1080" id="videoSizeY"><button id="render">⬤</button> <br>
+                    <input type="color" id="backgroundColor" value="#000000">
+                    <input type="number" value="100" id="bgSize">%
                     <input type="file" title="изображение/видео" id="bgfileInput" hidden accept="image/*, video/*"/>
+                    
+                    <div class="source" hidden>
+                        <label>Минусовка <br><input type="file" id="fileInput" accept="audio/*"/></label> <br>
+                        <label>Ссылка<input type="text"></label>
+                    </div>
                 </div>
             </div>
             
@@ -258,20 +281,7 @@
             <!-- Подозреваю, что для EN придется асинхронно обращаться во вне или скачивать словарь с исключениями-->
             <br> 
             <textarea id="textarea" cols="30" rows="10"></textarea> <br> 
-            
-            <div>
-                Размер видео
-                <input type="number" value="1920" id="videoSizeX">x<input type="number" value="1080" id="videoSizeY">
-            </div> <br> 
-
-            <div class="source" hidden>
-                <label>Минусовка <br><input type="file" id="fileInput" accept="audio/*"/></label> <br>
-                <label>Ссылка<input type="text"></label>
-            </div>
-            
             <br>
-            <label>Размер шрифта<input type="number" name="" id="fontSize"></label> <br>
-            <label>Межстрочный интервал <input type="number" name="" id="lineSpacing"></label> <br>
         </div>
     </div>
 </body>
