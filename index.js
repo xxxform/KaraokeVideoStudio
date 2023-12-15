@@ -12,7 +12,7 @@ let timelinePosition = 0;
 let timelineTimer = -1;
 let spanSyllableMap = new WeakMap();
 let wordsYoffset = .75;
-let lineSpacing = 1.5;
+let lineSpacing = 1.4;
 let fontSize = 8;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
@@ -98,28 +98,19 @@ canvasContext.fillStyle = "yellow";
 //Показывать плейсхолдер и срабатывать этот обработчик только тогда
 //когда  пуст
 
-const drawPad = () => {
-    padCanvasContext.clearRect(0, 0, padCanvas.width, padCanvas.height)
-    padCanvasContext.fillStyle = bgColor.value;
-    padCanvasContext.globalAlpha = bgOpacity.value / 100;
-    padCanvasContext.fillRect(0, backgroundCanvas.height * wordsYoffset, padCanvas.width, 50);
-}
-
-bgColor.oninput = bgOpacity.oninput = drawPad;
-
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
     const string = strings[stringIndex].map(({syllable}) => syllable);
     const text = string.join('');
     const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x
     const x = textCanvas.width / 2 - metrics.width / 2;
-    const y = textCanvas.height * wordsYoffset + ((stringIndex % 2) ? metrics.actualBoundingBoxDescent * lineSpacing : 0); //todo после перехода на vh удалить привязку к metrics
-    const halfOfLineSpacing = (metrics.actualBoundingBoxDescent * lineSpacing / 2);
+    const y = textCanvas.height * wordsYoffset + ((stringIndex % 2) ? metrics.fontBoundingBoxDescent * lineSpacing : 0); //todo после перехода на vh удалить привязку к metrics
+    const halfOfLineSpacing = (metrics.fontBoundingBoxDescent * lineSpacing / 2);
 
     // if (stringIndex % 2) 
     //     canvasContext.clearRect(0, y - halfOfLineSpacing / 2, textCanvas.width, textCanvas.height); //вторая строка
     // else 
     //     canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height * wordsYoffset + halfOfLineSpacing); //первая строка
-    canvasContext.clearRect(0, y, textCanvas.width, metrics.actualBoundingBoxDescent * 1.2);
+    canvasContext.clearRect(0, y, textCanvas.width, metrics.fontBoundingBoxDescent * 1.1); // * 1.1 нужен чтобы убрать следы от обводки stroke
 
     canvasContext.fillStyle = "yellow";
     canvasContext.fillText(text, x, y);
@@ -134,16 +125,19 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
     return metrics;
 }
 
-drawString(0);
-drawString(1);
-
 words.ondblclick = e => {
     fileInput.click();
 }
 
-const getYPersent = y => {
-    
+const drawPad = () => {
+    const measure = canvasContext.measureText('').fontBoundingBoxDescent;
+    padCanvasContext.clearRect(0, 0, padCanvas.width, padCanvas.height)
+    padCanvasContext.fillStyle = bgColor.value;
+    padCanvasContext.globalAlpha = bgOpacity.value / 100;
+    padCanvasContext.fillRect(0, backgroundCanvas.height * wordsYoffset - measure / 3, padCanvas.width, (measure * lineSpacing + measure) + measure / 3 * 2);
 }
+
+bgColor.oninput = bgOpacity.oninput = drawPad;
 
 textEditToolkit.onclick = () => {
     if (started || textEditToolkit.classList.contains('active')) return;
@@ -170,6 +164,7 @@ textEditToolkit.onclick = () => {
             canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
             drawString(stringCursor, syllableCursor); //todo может быть баг если stringCursor === -1 
             if (strings[stringCursor + 1]) drawString(stringCursor + 1);
+            drawPad();
         }
         document.body.onmouseup = document.body.ontouchend = removeHandlers;
     }
@@ -183,31 +178,19 @@ textEditToolkit.onclick = () => {
 
 const recalcMetrics = () => {
     const onePercent = textCanvas.height / 100;
-    const measureHeight = canvasContext.measureText('Д').actualBoundingBoxDescent; //todo в разных шрифтах высота букв разная. при смене шрифта менять 
+    const measureHeight = canvasContext.measureText('').fontBoundingBoxDescent; //todo в разных шрифтах высота букв разная. при смене шрифта менять 
     const lineHeight = (measureHeight * lineSpacing + measureHeight) / onePercent;
     textEditToolkit.style.height = lineHeight + '%';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    drawPad();
+    drawString(0);
+    drawString(1);
     setTimeout(() => document.documentElement.scrollTop = document.documentElement.scrollHeight, 0);
     textEditToolkit.style.top = wordsYoffset * 100 + '%';
     recalcMetrics();
 })
-
-const metrics = canvasContext.measureText('Ночью в поле звезд благодать');
-
-//canvasContext.fillText("Ночью в поле звезд благодать", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
-
-const metrics2 = canvasContext.measureText('Мы пойдем с конем по полю вдвоем');
-
-//canvasContext.fillText("Мы пойдем с конем по полю вдвоем", textCanvas.width / 2 - metrics2.width / 2, textCanvas.height * .75 + metrics.actualBoundingBoxAscent * 1.5);
-
-let left = textCanvas.width / 2 - metrics.actualBoundingBoxRight;
-canvasContext.textAlign = "left";
-canvasContext.fillStyle = "red";
-//canvasContext.fillText("Ночью в поле звезд", textCanvas.width / 2 - metrics.width / 2, textCanvas.height * .75);
-canvasContext.strokeStyle = 'red';
-//canvasContext.strokeText("Ночью в поле звезд благодать", Math.floor(left), textCanvas.height * .75);
 
 var stream = renderCanvas.captureStream(); 
 //если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps
