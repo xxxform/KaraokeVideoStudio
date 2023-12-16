@@ -108,6 +108,7 @@ canvasContext.fillStyle = "yellow";
 //https://developer.mozilla.org/en-US/docs/Web/API/MediaSourceHandle только chrome
 
 //взять кадр для кеширования фона с pad. canvasContext.getImageData(0, 0, width, height).data
+let bgWithPad;
 
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
     const string = strings[stringIndex].map(({syllable}) => syllable);
@@ -136,8 +137,7 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
 
     if (recording) {
         renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
-        renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
-        renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+        renderCanvasContext.putImageData(bgWithPad, 0, 0);
         renderCanvasContext.drawImage(textCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
     }
 }
@@ -293,23 +293,19 @@ const run = async () => {
     // })();
 };
 
-
 render.onclick = async () => {
     const name = fileInput.files[0].name;
     const fileName = name.slice(0, name.lastIndexOf('.'))
     const suggestedName = fileName + "(Караоке).webm";
     const handle = await window.showSaveFilePicker({ suggestedName });
     const writable = await handle.createWritable();
-    //https://web.dev/patterns/files/save-a-file?hl=ru#js showSaveFilePicker есть только в chrome
+    //https://web.dev/patterns/files/save-a-file?hl=ru#js todo showSaveFilePicker есть только в chrome
 
-    // var [stream] = renderCanvas.captureStream().getVideoTracks(); 
-    // var [audioStream] = audio.captureStream().getAudioTracks();
-    const canvasStream = renderCanvas.captureStream(); //textCanvas.captureStream();//так работает без цикла draw и без задержки
-    canvasStream.addTrack(audio.captureStream().getAudioTracks()[0]);
-    //canvasStream.addTrack(padCanvas.captureStream().getVideoTracks()[0]);
+    const stream = audio.captureStream();
+    stream.addTrack(renderCanvas.captureStream().getVideoTracks()[0]);
 
     //если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps   new MediaStream([stream, audioStream])
-    var recorder = new MediaRecorder(canvasStream, {
+    var recorder = new MediaRecorder(stream, {
         videoBitsPerSecond : 250000000, mimeType: 'video/webm;codecs=vp9' //todo MediaRecorder.isTypeSupported('video/mpeg')
     });
 
@@ -320,21 +316,17 @@ render.onclick = async () => {
         }
     });
 
-    //var requestID = -1;
     audio.addEventListener('pause', function stopRecord(){
         recording = false;
         recorder.stop();
-        canvasStream.getTracks().forEach(track => track.stop());
-        //clearInterval(requestID);//cancelAnimationFrame(requestID);
+        stream.getTracks().forEach(track => track.stop());
         audio.removeEventListener('pause', stopRecord);
     });
 
-    // (function draw() { //todo оптимизация. при img фоне можно снять наложение pad на bg
-    //     renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
-    //     renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
-    //     renderCanvasContext.drawImage(textCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
-    //     requestID = setTimeout(draw, 1000 / 30); //requestAnimationFrame(draw);
-    // })();
+    renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
+    renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
+    renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+    bgWithPad = renderCanvasContext.getImageData(0, 0, renderCanvas.width, renderCanvas.height);
 
     recording = true;
     audio.currentTime = 0;
