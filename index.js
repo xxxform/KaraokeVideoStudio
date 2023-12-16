@@ -63,6 +63,9 @@ canvasContext.fillStyle = "yellow";
 
 //todo extra
 //мультитач жест zoom для увеличения размера шрифта
+//на компьютере - колесико мыши
+//тоже самое и с фоновым изображением
+
 //extra возможность добавить фоновое видео
 //при удержании пальца/кнопки слог тянется
 //мультивыделение при удержании
@@ -107,7 +110,7 @@ canvasContext.fillStyle = "yellow";
 //todo воркер для стрима видео на canvas
 //https://developer.mozilla.org/en-US/docs/Web/API/MediaSourceHandle только chrome
 
-//взять кадр для кеширования фона с pad. canvasContext.getImageData(0, 0, width, height).data
+
 let bgWithPad;
 
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
@@ -165,6 +168,10 @@ bgColor.oninput = bgOpacity.oninput = drawPad;
 bgEditToolkit.onclick = () => {
     if (started || bgEditToolkit.classList.contains('active')) return;
     bgEditToolkit.classList.add('active');
+    const placeholder = 'Нажмите два раза чтобы выбрать фоновое изображение или видео';
+
+    if (!img.src) 
+        bgEditToolkit.firstElementChild.textContent = placeholder;
 
     bgEditToolkit.ondblclick = () => {
         bgfileInput.click();
@@ -198,21 +205,26 @@ bgEditToolkit.onclick = () => {
         document.body.addEventListener('mouseup', removeHandlers);
         document.body.addEventListener('touchend', removeHandlers);
     }
-
-    
     
     document.body.onclick = e => {
         if (e.target.closest('#bgEditToolkit') || e.target.closest('#toolbarElem')) return;
         bgEditToolkit.ondblclick = bgEditToolkit.onmousedown = bgEditToolkit.ontouchstart = document.body.onmouseup = document.body.ontouchend = null;
+        if (bgEditToolkit.firstElementChild.textContent === placeholder) 
+            bgEditToolkit.firstElementChild.textContent = '';
         removeHandlers();
         bgEditToolkit.classList.remove('active');
     }
-
 }
 
 textEditToolkit.onclick = () => {
     if (started || textEditToolkit.classList.contains('active')) return;
     textEditToolkit.classList.add('active');
+    const placeholder = 'Нажмите два раза на текст чтобы редактировать его';
+    bgEditToolkit.firstElementChild.textContent = placeholder;
+
+    textEditToolkit.ondblclick = () => {
+        wordEditor.style.display = 'block';
+    }
 
     const removeHandlers = () => {
         toolbarElem.style.display = '';
@@ -242,10 +254,95 @@ textEditToolkit.onclick = () => {
     
     document.body.onmousedown = document.body.ontouchstart = e => {
         if (e.target.closest('#textEditToolkit') || e.target.closest('#toolbarElem')) return;
-        textEditToolkit.onmousedown = textEditToolkit.ontouchstart = null;
+        textEditToolkit.ondblclick = textEditToolkit.onmousedown = textEditToolkit.ontouchstart = null;
+        if (bgEditToolkit.firstElementChild.textContent === placeholder) 
+            bgEditToolkit.firstElementChild.textContent = '';
         removeHandlers();
         textEditToolkit.classList.remove('active');
     }
+}
+
+exitEditorButton.onclick = () => {
+    wordEditor.style.display = '';
+}
+
+//поведение contenteditable
+//при нажатии enter посредине span, левая часть будет новым span а правая останется тем же
+//если удалить содержимое span может остаться пустая строка и если нажать enter новый span в новой строке не создастся
+
+editor.onpaste = e => {
+    e.preventDefault();
+    let text = (e.originalEvent || e).clipboardData.getData('text/plain');
+    text = text.replaceAll(/\r\n/g, '\n');
+    const strs = text.split('\n');
+
+    strs.map(str => {
+        const li = document.createElement('li');
+        str = str.replaceAll(/( |^)([бвгджзйклмнпрстфхцчшщ]{1})( )/gi, "$1$2_");
+
+        str = str.split(' ').filter(s => s).forEach(function hanlder(word) {
+            if (word.includes('-')) {
+                word.split('-').forEach(hanlder);//если в слове несколько тире некорректно
+                li.lastChild.previousSibling.textContent += '-';
+                return;
+            }
+
+            if (autoSplit.checked) {
+                convert(word).split('/').forEach(syllable => {
+                    const span = document.createElement('span');
+                    span.textContent = syllable;
+                    li.append(span);
+                });
+            } else {
+                const span = document.createElement('span');
+                span.textContent = word;
+                li.append(span);
+            }
+
+            li.lastChild.textContent += ' '; //пробел в конце слова
+
+            editor.append(li);
+        });
+
+        return li;
+    });
+    //разбить по пробелам и '-', обернуть в span'ы
+
+    const [first, ...others] = strs;
+    //вставить strs[0] на место курсора в текущую строку, остальные вставить следующими строками
+
+    // const sel = window.getSelection()
+
+    // if (sel.rangeCount) {
+    //     sel.deleteFromDocument()
+    //     sel.getRangeAt(0).insertNode(document.createTextNode(text));
+    // }
+    return;
+    
+    var range = document.getSelection().getRangeAt(0);
+    range.deleteContents();
+    
+    var textNode = document.createTextNode(text);
+    range.insertNode(textNode);
+    range.selectNodeContents(textNode);
+    range.collapse(false);
+
+    var selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+
+const stringsToEditor = () => {
+    
+}
+
+stringsToEditor();
+
+editor.oninput = e => {
+    if (['deleteContentForward', 'deleteContentBackward'].includes(e.inputType) && !editor.children.length) {
+        editor.append(document.createElement('li'));
+    }
+    console.log(e);
 }
 
 const recalcMetrics = () => {
@@ -611,11 +708,6 @@ const showTimeline = (from, duration) => {
         words.append(word.timelineSpan);
     })
 }
-
-toggleSettingsButton.onclick = () => {
-    settingsContent.style.display = settingsContent.style.display ? '' : 'block';
-}
-//toggleSettingsButton.click(); 
 
 const updateTimelineDuration = () => {
     clearTimeout(timelineTimer);

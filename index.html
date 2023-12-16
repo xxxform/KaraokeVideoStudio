@@ -38,7 +38,9 @@
                 position: absolute;
                 width: 100%;
                 height: 90%;
-                .content {display: none}
+                display: flex;
+                justify-content: center;
+                align-items: center;
             }
             #textEditToolkit {
                 position: absolute;
@@ -47,12 +49,6 @@
             }
             #textEditToolkit.active, #bgEditToolkit.active {
                 border: 1px dashed grey;
-            }
-            #bgEditToolkit.active {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                .content {display: block}
             }
             #toolbarElem {
                 background: rgba(0,0,0,.7);
@@ -63,9 +59,14 @@
                 .text, .background {
                     display: none;
                 }
-                .background > input[type="number"]{
-                    width: 4em;
-                } 
+                .background {
+                    > input[type="number"]{
+                        width: 4em;
+                    }
+                    #render {
+                        color: red;
+                    }
+                }
                 .text > input {
                     width: 4em;
                 }
@@ -78,6 +79,7 @@
                 display: block;
                 .background {display: block }
             }
+            
             .canvasWrapper {
                 overflow: hidden;
                 position: absolute;
@@ -168,26 +170,25 @@
                 z-index: -1;
             }
         }
-        .settings {
-            overflow-y: auto;
+        #wordEditor {
             position: absolute;
             top: 0;
+            bottom: 0;
             right: 0;
-            height: 100%;
+            left: 0;
+            z-index: 2;
+            display: none;
+            background-color: black;
 
-            #toggleSettingsButton {
-                background-color: rgba(128,128,128,.1);
-                font-size: 5em;
-                border: 0;
+            #exitEditorButton {
+                position: absolute;
+                right: 0;
+                top: 0;
+                font-size: 4em;
             }
-            #toggleSettingsButton:hover {
-                background-color: rgba(128,128,128,.3);
-            }
-            .content {
-                display: none;
-            }
-            & input[type="number"]{
-                width: 3em;
+            #editor {
+                /* white-space: pre-wrap;  */
+                /* display: inline-block; */
             }
         }
     </style>
@@ -201,9 +202,7 @@
             <canvas id="textCanvas" width="1920" height="1080"></canvas>
             
             <div id="bgEditToolkit">
-                <div class="content">
-                    Нажмите два раза чтобы выбрать фоновое аудио или видео
-                </div>
+                <div class="content"></div>
             </div>
 
             <div id="textEditToolkit">
@@ -272,16 +271,22 @@
         </audio>
     </div>
 
-    <div class="settings">
-        <button id="toggleSettingsButton">...</button>
-    
-        <div class="content" id="settingsContent">
+    <div id="wordEditor">
+        <button id="exitEditorButton">❌</button>
+        <div class="toolbar">
             <button id="splitButton">Разбить на слоги</button>
+            <input type="checkbox" id="autoSplit" checked>
             <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
             <!-- Подозреваю, что для EN придется асинхронно обращаться во вне или скачивать словарь с исключениями-->
-            <br> 
-            <textarea id="textarea" cols="30" rows="10"></textarea> <br> 
-            <br>
+        </div>
+        <div class="content">
+            <!-- <div id="editor" contenteditable><p>h </p></div> -->
+            <ul id="editor" contenteditable="true">
+                <li><span>Это </span><span>текст </span></li>
+                <li><span>Это </span><span>текст </span></li>
+            </ul>
+            <!-- <textarea id="textarea" cols="30" rows="10"></textarea> <br>  -->
+            <!-- <br> -->
         </div>
     </div>
 </body>
