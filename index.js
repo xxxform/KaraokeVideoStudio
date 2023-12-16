@@ -1,4 +1,5 @@
 let started = false;
+let recording = false;
 let strings = [
     [{syllable: 'Вве', time: -1}, {syllable: 'ди', time: -1}, {syllable: 'те ', time: -1}, {syllable: 'те', time: -1}, {syllable: 'кст', time: -1}],
     [{syllable: 'En', time: -1}, {syllable: 'ter ', time: -1}, {syllable: 'the ', time: -1}, {syllable: 'text', time: -1}]
@@ -21,6 +22,7 @@ var img = new Image;
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
 var padCanvasContext = padCanvas.getContext("2d");
+var renderCanvasContext = renderCanvas.getContext('2d');
 //canvasContext.font = `${fontSize}vh Arial`;
 canvasContext.font = `${Math.ceil(textCanvas.width / 24)}px Arial`;
 canvasContext.textAlign = "left";
@@ -102,10 +104,15 @@ canvasContext.fillStyle = "yellow";
 //Показывать плейсхолдер и срабатывать этот обработчик только тогда
 //когда  пуст
 
+//todo воркер для стрима видео на canvas
+//https://developer.mozilla.org/en-US/docs/Web/API/MediaSourceHandle только chrome
+
+//взять кадр для кеширования фона с pad. canvasContext.getImageData(0, 0, width, height).data
+
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
     const string = strings[stringIndex].map(({syllable}) => syllable);
     const text = string.join('');
-    const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x
+    const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x для всех строк
     const x = textCanvas.width / 2 - metrics.width / 2;
     const y = textCanvas.height * wordsYoffset + ((stringIndex % 2) ? metrics.fontBoundingBoxDescent * lineSpacing : 0); //todo после перехода на vh удалить привязку к metrics
     const halfOfLineSpacing = (metrics.fontBoundingBoxDescent * lineSpacing / 2);
@@ -126,7 +133,13 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
         canvasContext.strokeStyle = 'red';
         canvasContext.strokeText(substring, x, y);
     } 
-    return metrics;
+
+    if (recording) {
+        renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
+        renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
+        renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+        renderCanvasContext.drawImage(textCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+    }
 }
 
 words.ondblclick = e => {
@@ -274,43 +287,31 @@ const run = async () => {
     // renderCanvas.width = 1920;
     // renderCanvas.height = 1080;
     
-    (function draw() {
-        bgCanvasContext.drawImage(video, 0, 0, 1920, 1080);
-        requestAnimationFrame(draw);
-    })();
-
-    
-
-    //var textStream = canvas.captureStream(30); 
-
     // (function draw() {
-    //     context.drawImage(desktop, 0, 0, 1920, 1080);
-    //     context.drawImage(canvas, 0, 0, canvas.width, canvas.height);
-
+    //     bgCanvasContext.drawImage(video, 0, 0, 1920, 1080);
     //     requestAnimationFrame(draw);
     // })();
-    
-
 };
 
-//toggleSettingsButton.onclick = run;
+
 render.onclick = async () => {
     const name = fileInput.files[0].name;
     const fileName = name.slice(0, name.lastIndexOf('.'))
     const suggestedName = fileName + "(Караоке).webm";
     const handle = await window.showSaveFilePicker({ suggestedName });
     const writable = await handle.createWritable();
+    //https://web.dev/patterns/files/save-a-file?hl=ru#js showSaveFilePicker есть только в chrome
 
     // var [stream] = renderCanvas.captureStream().getVideoTracks(); 
     // var [audioStream] = audio.captureStream().getAudioTracks();
-    const canvasStream = renderCanvas.captureStream();
+    const canvasStream = renderCanvas.captureStream(); //textCanvas.captureStream();//так работает без цикла draw и без задержки
     canvasStream.addTrack(audio.captureStream().getAudioTracks()[0]);
+    //canvasStream.addTrack(padCanvas.captureStream().getVideoTracks()[0]);
 
-    //если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps
-    var recorder = new MediaRecorder(/*new MediaStream([stream, audioStream])*/canvasStream, {
-        videoBitsPerSecond : 250000000, mimeType: 'video/webm;codecs=vp9' //MediaRecorder.isTypeSupported('video/mpeg')
+    //если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps   new MediaStream([stream, audioStream])
+    var recorder = new MediaRecorder(canvasStream, {
+        videoBitsPerSecond : 250000000, mimeType: 'video/webm;codecs=vp9' //todo MediaRecorder.isTypeSupported('video/mpeg')
     });
-    const renderCanvasContext = renderCanvas.getContext('2d');
 
     recorder.addEventListener("dataavailable", async (event) => {
         await writable.write(event.data);
@@ -319,18 +320,23 @@ render.onclick = async () => {
         }
     });
 
+    //var requestID = -1;
     audio.addEventListener('pause', function stopRecord(){
+        recording = false;
         recorder.stop();
         canvasStream.getTracks().forEach(track => track.stop());
+        //clearInterval(requestID);//cancelAnimationFrame(requestID);
         audio.removeEventListener('pause', stopRecord);
     });
 
-    (function draw() { //todo оптимизация. при img фоне можно снять наложение pad на bg
-        renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
-        renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
-        renderCanvasContext.drawImage(textCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
-        requestAnimationFrame(draw);
-    })();
+    // (function draw() { //todo оптимизация. при img фоне можно снять наложение pad на bg
+    //     renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
+    //     renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+    //     renderCanvasContext.drawImage(textCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+    //     requestID = setTimeout(draw, 1000 / 30); //requestAnimationFrame(draw);
+    // })();
+
+    recording = true;
     audio.currentTime = 0;
     recorder.start();
     audio.play();
