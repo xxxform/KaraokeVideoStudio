@@ -270,10 +270,54 @@ exitEditorButton.onclick = () => {
 //при нажатии enter посредине span, левая часть будет новым span а правая останется тем же
 //если удалить содержимое span может остаться пустая строка и если нажать enter новый span в новой строке не создастся
 
+//для созданных a создать атрибут data-id ссылку на объект syllable, то-же и для строк li.
+//чтобы создать строковую ссылку на объект использовать getRandomInt(0, 10000)
+//и записать его в obj = {}; obj[data-id] = syllable
+
+let lastAction;
+let records
+const observer = new MutationObserver((list) => {
+    const added = [];
+    const removed = [];
+
+    list.forEach(record => {
+        if (record.addedNodes.length) {
+            added.push(...record.addedNodes);
+        } else
+        if (record.removedNodes.length) {
+            removed.push(...record.removedNodes);
+        }
+    });
+
+    //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
+
+    for (let additon of added) {
+        if (additon.nodeType === Node.TEXT_NODE) {
+            const a = document.createElement('a');
+            a.textContent = additon.textContent;
+            additon.replaceWith(a);
+        }
+    }
+
+    records = [added, removed];
+
+});
+
+ observer.observe(editor, { childList: true, subtree: true })
+
 editor.onpaste = e => {
     e.preventDefault();
     let text = (e.originalEvent || e).clipboardData.getData('text/plain');
     text = text.replaceAll(/\r\n/g, '\n');
+
+    const sel = window.getSelection();
+
+    if (sel.rangeCount) {
+        sel.deleteFromDocument();//если было что то выделено, оно будет заменено
+        sel.getRangeAt(0).insertNode(document.createTextNode(text));
+    }
+    return;
+
     const strs = text.split('\n');
 
     strs.map(str => {
@@ -311,13 +355,7 @@ editor.onpaste = e => {
     const [first, ...others] = strs;
     //вставить strs[0] на место курсора в текущую строку, остальные вставить следующими строками
 
-    // const sel = window.getSelection()
-
-    // if (sel.rangeCount) {
-    //     sel.deleteFromDocument()
-    //     sel.getRangeAt(0).insertNode(document.createTextNode(text));
-    // }
-    return;
+    
     
     var range = document.getSelection().getRangeAt(0);
     range.deleteContents();
@@ -338,11 +376,30 @@ const stringsToEditor = () => {
 
 stringsToEditor();
 
-editor.oninput = e => {
+editor.oninput = e => { 
+    lastAction = e.inputType;
+    //e.preventDefault(); нельзя отменить тк срабатывает после изменения
     if (['deleteContentForward', 'deleteContentBackward'].includes(e.inputType) && !editor.children.length) {
         editor.append(document.createElement('li'));
-    }
-    console.log(e);
+    } 
+    // else 
+    // if (e.inputType === 'insertParagraph') {
+    //     for (let li of editor.children) {
+    //         if (li.textContent) continue;
+    //         const a = document.createElement('a')
+    //         a.textContent = '';
+    //         li.append(a);
+    //         a.focus();
+
+    //         var sel = window.getSelection();
+    //         var range = document.createRange();
+    //         range.setStart(a, 0);
+    //         range.collapse(true);
+    //         sel.removeAllRanges();
+    //         sel.addRange(range);
+    //     }
+    // }
+
 }
 
 const recalcMetrics = () => {

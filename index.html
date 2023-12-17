@@ -187,6 +187,9 @@
                 font-size: 4em;
             }
             #editor {
+                /* > li > a:first-child::before {
+                    content: '))))';
+                } */
                 /* white-space: pre-wrap;  */
                 /* display: inline-block; */
             }
@@ -279,14 +282,14 @@
             <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
             <!-- Подозреваю, что для EN придется асинхронно обращаться во вне или скачивать словарь с исключениями-->
         </div>
-        <div class="content">
-            <!-- <div id="editor" contenteditable><p>h </p></div> -->
-            <ul id="editor" contenteditable="true">
-                <li><span>Это </span><span>текст </span></li>
-                <li><span>Это </span><span>текст </span></li>
+        <div class="content"> 
+            <!-- Вешай на каждый a data-id и следи за добаслением их через mutationObserver -->
+            <ul id="editor" contenteditable class="editable"> 
+                <li><a href="2">Это </a><a href="3">текст </a></li>
+                <li><a href="5" data-a="a">Это </a><a href="6" data-b="b">текст </a></li>
             </ul>
-            <!-- <textarea id="textarea" cols="30" rows="10"></textarea> <br>  -->
-            <!-- <br> -->
+
+            <textarea hidden id="textarea" cols="30" rows="10"></textarea> <br> 
         </div>
     </div>
 </body>
