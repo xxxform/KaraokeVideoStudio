@@ -1,7 +1,7 @@
 let started = false;
 let recording = false;
 let strings = [
-    [{syllable: 'Вве', time: -1}, {syllable: 'ди', time: -1}, {syllable: 'те ', time: -1}, {syllable: 'те', time: -1}, {syllable: 'кст', time: -1}],
+    [{syllable: 'Вве', time: -1}, {syllable: 'ди', time: -1}, {syllable: 'те ', time: -1}, {syllable: 'текст', time: -1}],
     [{syllable: 'En', time: -1}, {syllable: 'ter ', time: -1}, {syllable: 'the ', time: -1}, {syllable: 'text', time: -1}]
 ]; 
 let syllableCursor = -1;
@@ -295,12 +295,16 @@ const observer = new MutationObserver((list) => {
 
     //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
     //баг. [всё] выделить вставить
+    //баг. выделить две полные строки и вставить символ с клавиатуры будет обернут в span и всё сломает
     for (let additon of added) {
         if (additon.nodeType === Node.TEXT_NODE && additon?.parentElement?.tagName !== 'A') {
             let a = document.createElement('a');
             a.textContent = additon.textContent;
 
-            if (additon.parentElement.tagName !== 'LI') {
+            if (additon.parentElement?.tagName === 'SPAN') 
+                additon.parentElement.replaceWith(additon);
+            
+            if (additon.parentElement?.tagName !== 'LI') { 
                 let li = document.createElement('li');
                 li.append(a);
                 additon.replaceWith(li);
@@ -371,7 +375,7 @@ editor.onpaste = async e => {
         let endA = endTextNode.parentElement;
 
         let alla = editor.querySelectorAll('a');
-        let startAIndex = Array.prototype.indexOf.call(alla, startA)
+        let startAIndex = Array.prototype.indexOf.call(alla, startA) //todo startA может быть пустой строкой li на которой стоит курсор
         let endAIndex = Array.prototype.indexOf.call(alla, endA);
 
         for (let i = startAIndex; i <= endAIndex; i++) {
@@ -454,25 +458,30 @@ const stringsToEditor = () => {
 stringsToEditor();
 // todo в новом li почемуто формируется span, а в ссылке вложенная ссылка если перенести строку
 //если курсор стоит после ссылки текстовые ноды вставляются новые много. нужно установить курсор правильно 
-editor.oninput = e => { 
+editor.onbeforeinput = e => { 
     lastAction = e.inputType;
 
     if (e.data === '/') {
+        e.preventDefault();
         const sel = document.getSelection();
         const range = sel.getRangeAt(0);
         const textNode = sel.anchorNode;
-        if (textNode?.parentElement?.tagName !== 'A') return;
-        //todo проверка если это конец слова то ничего не делать и стереть слеш
-        const a = textNode.parentElement;
         const rawText = textNode.textContent;
+        if (textNode?.parentElement?.tagName !== 'A' || !sel.anchorOffset || sel.anchorOffset === rawText.length) return;
+        
+        const a = textNode.parentElement;
         const slashPosition = sel.anchorOffset;
-        const left = rawText.slice(0, slashPosition - 1);
-        textNode.textContent = left;
+        const left = rawText.slice(0, slashPosition);
         const right = rawText.slice(slashPosition);
         const newA = document.createElement('a');
+        textNode.textContent = left;
         newA.textContent = right;
         a.after(newA);
-        //todo переместить курсор
+        range.setStart(newA, 0);
+        range.setEnd(newA, 0);
+    } 
+    else if (e.data === '_') {
+
     }
     
     //e.preventDefault(); нельзя отменить тк срабатывает после изменения
@@ -515,9 +524,21 @@ backgroundColor.oninput = () => {
     drawBackground()
 }
 
+const parseJsonWords = strings => {
+    strings.forEach(string => {
+        const li = document.createElement('li');
+        string.forEach(word => {
+            const a = document.createElement('a'); 
+            a.textContent = word.syllable;
+            li.append(a);
+        });
+        editor.append(li);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     bgCanvasContext.fillStyle = backgroundColor.value;
-    
+    parseJsonWords(strings);
     drawPad();
     drawString(0);
     drawString(1);

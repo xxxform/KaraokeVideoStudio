@@ -186,11 +186,19 @@
                 top: 0;
                 font-size: 4em;
             }
+            .content {
+                display: flex;
+                justify-content: center;
+            }
+            .toolbar {
+                text-align: center;
+            }
             #editor {
                 > li > a {
                     background-color: rgba(44, 155, 136, 0.7);
                     border-radius: 21%;
-                    text-decoration: none
+                    text-decoration: none;
+                    /* white-space: pre; */
                 }
                 /* > li > a:first-child::before {
                     content: '))))';
@@ -289,10 +297,7 @@
         </div>
         <div class="content"> 
             <!-- Вешай на каждый a data-id и следи за добаслением их через mutationObserver -->
-            <ul id="editor" contenteditable class="editable"> 
-                <li><a href="2">Это </a><a href="3">текст </a></li>
-                <li><a href="5" data-a="a">Это </a><a href="6" data-b="b">текст </a></li>
-            </ul>
+            <ul id="editor" contenteditable class="editable"> </ul>
 
             <textarea hidden id="textarea" cols="30" rows="10"></textarea> <br> 
         </div>
