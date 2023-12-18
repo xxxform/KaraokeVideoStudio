@@ -289,99 +289,195 @@ const observer = new MutationObserver((list) => {
         }
     });
 
-    //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
+    if (!editor.children.length) {
+        editor.append(document.createElement('li'));
+    }
 
+    //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
+    //баг. [всё] выделить вставить
     for (let additon of added) {
-        if (additon.nodeType === Node.TEXT_NODE) {
-            const a = document.createElement('a');
+        if (additon.nodeType === Node.TEXT_NODE && additon?.parentElement?.tagName !== 'A') {
+            let a = document.createElement('a');
             a.textContent = additon.textContent;
-            additon.replaceWith(a);
+
+            if (additon.parentElement.tagName !== 'LI') {
+                let li = document.createElement('li');
+                li.append(a);
+                additon.replaceWith(li);
+            } else {
+                additon.replaceWith(a);
+            }
+            
+            //поставить курсор правильно, в конец элемента a
+            if (window.getSelection && document.createRange) {
+                // IE 9 and non-IE
+                var sel = window.getSelection();
+                var range = document.createRange();
+                range.setStart(a.firstChild, a.textContent.length); //setStart(p, 0) установит начало диапазона на нулевом дочернем элементе тега p(напр текстовый узел)
+                range.collapse(true);
+                sel.removeAllRanges(); //чтобы не возникло multirange
+                sel.addRange(range); //выделить этот диапазон на странице
+            } else if (document.body.createTextRange) {
+                // IE < 9
+                var textRange = document.body.createTextRange();
+                textRange.moveToElementText(a);
+                textRange.collapse(true);
+                textRange.select();
+            }
+
         }
+    }
+
+    for (let removation of removed) {
+        
     }
 
     records = [added, removed];
 
 });
 
- observer.observe(editor, { childList: true, subtree: true })
+ observer.observe(editor, { childList: true, subtree: true, characterData: true })
 
-editor.onpaste = e => {
+editor.oncut = e => {
+    //можно сохранить выделенное в Range.surroundContents(docfragment)
+    //затем при onpaste если есть docfrag вставить его если не сложно
+    //event.clipboardData.setData('text/html', div.innerHTML);
+    //event.clipboardData.getData('text/html');
+    /*
+    event.clipboardData.setData('text/html', div.innerHTML); 
+    event.clipboardData.setData('text/plain', div.innerHTML.toString());
+     */
+}
+
+editor.onpaste = async e => {
     e.preventDefault();
     let text = (e.originalEvent || e).clipboardData.getData('text/plain');
     text = text.replaceAll(/\r\n/g, '\n');
 
     const sel = window.getSelection();
 
-    if (sel.rangeCount) {
-        sel.deleteFromDocument();//если было что то выделено, оно будет заменено
-        sel.getRangeAt(0).insertNode(document.createTextNode(text));
+    if (sel.rangeCount) { //range startContainer всегда первее в dom чем end
+        const range = sel.getRangeAt(0); //range start offset и end содержит позицию каретки
+        //вставлять после первого элемента и чуть стереть если range.startOffset 
+        let startTextNode = range.startContainer;
+        let endTextNode = range.endContainer;
+
+        // //значит выделили всё в firefox или вставляем в пустой ul
+        // if (range.startContainer.nodeType !== Node.TEXT_NODE) { 
+        // } если мы вставляем в пустой li
+        //range.collapse(true); свернет диапазон в начало
+
+        let startA = startTextNode.parentElement;
+        let endA = endTextNode.parentElement;
+
+        let alla = editor.querySelectorAll('a');
+        let startAIndex = Array.prototype.indexOf.call(alla, startA)
+        let endAIndex = Array.prototype.indexOf.call(alla, endA);
+
+        for (let i = startAIndex; i <= endAIndex; i++) {
+            const li = alla[i].parentElement;
+            alla[i].remove();
+            if (i !== startAIndex && !li.children.length) li.remove();
+        }
+
+        range.insertNode(document.createTextNode(text));
+        //startRangeTextNode.parentElement.after(document.createTextNode(text));
+
+        //const deleted = range.extractContents();//deleteContents если было что то выделено, оно будет заменено
+
+        //todo придется делать пошаговое ручное удаление выделенного range перед вставкой. или же mutationobserver'ом отследить все вставленные div'ы и превращать их в li их 
+        //или что проще установить наблюдатель изменений за содержимым. если в a нет текста - удалить его
+        //range.insertNode(document.createTextNode(text));
     }
     return;
+    //
+  
+    //onselectionstart на contenteditable вычислять и navigator.clipboard.readText() если поддерживается и заменять его на чистый
+    await navigator.clipboard.writeText(e.clipboardData.getData('text/plain'));
+    
+    // const strs = text.split('\n');
 
-    const strs = text.split('\n');
+    // strs.map(str => {
+    //     const li = document.createElement('li');
+    //     str = str.replaceAll(/( |^)([бвгджзйклмнпрстфхцчшщ]{1})( )/gi, "$1$2_");
 
-    strs.map(str => {
-        const li = document.createElement('li');
-        str = str.replaceAll(/( |^)([бвгджзйклмнпрстфхцчшщ]{1})( )/gi, "$1$2_");
+    //     str = str.split(' ').filter(s => s).forEach(function hanlder(word) {
+    //         if (word.includes('-')) {
+    //             word.split('-').forEach(hanlder);//если в слове несколько тире некорректно
+    //             li.lastChild.previousSibling.textContent += '-';
+    //             return;
+    //         }
 
-        str = str.split(' ').filter(s => s).forEach(function hanlder(word) {
-            if (word.includes('-')) {
-                word.split('-').forEach(hanlder);//если в слове несколько тире некорректно
-                li.lastChild.previousSibling.textContent += '-';
-                return;
-            }
+    //         if (autoSplit.checked) {
+    //             convert(word).split('/').forEach(syllable => {
+    //                 const span = document.createElement('span');
+    //                 span.textContent = syllable;
+    //                 li.append(span);
+    //             });
+    //         } else {
+    //             const span = document.createElement('span');
+    //             span.textContent = word;
+    //             li.append(span);
+    //         }
 
-            if (autoSplit.checked) {
-                convert(word).split('/').forEach(syllable => {
-                    const span = document.createElement('span');
-                    span.textContent = syllable;
-                    li.append(span);
-                });
-            } else {
-                const span = document.createElement('span');
-                span.textContent = word;
-                li.append(span);
-            }
+    //         li.lastChild.textContent += ' '; //пробел в конце слова
 
-            li.lastChild.textContent += ' '; //пробел в конце слова
+    //         editor.append(li);
+    //     });
 
-            editor.append(li);
-        });
+    //     return li;
+    // });
+    // //разбить по пробелам и '-', обернуть в span'ы
 
-        return li;
-    });
-    //разбить по пробелам и '-', обернуть в span'ы
-
-    const [first, ...others] = strs;
-    //вставить strs[0] на место курсора в текущую строку, остальные вставить следующими строками
+    // const [first, ...others] = strs;
+    // //вставить strs[0] на место курсора в текущую строку, остальные вставить следующими строками
 
     
     
-    var range = document.getSelection().getRangeAt(0);
-    range.deleteContents();
+    // var range = document.getSelection().getRangeAt(0);
+    // range.deleteContents();
     
-    var textNode = document.createTextNode(text);
-    range.insertNode(textNode);
-    range.selectNodeContents(textNode);
-    range.collapse(false);
+    // var textNode = document.createTextNode(text);
+    // range.insertNode(textNode);
+    // range.selectNodeContents(textNode);
+    // range.collapse(false);
 
-    var selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
+    // var selection = window.getSelection();
+    // selection.removeAllRanges();
+    // selection.addRange(range);
 }
 
 const stringsToEditor = () => {
     
 }
-
+//todo addEventListener("animationstart", (event) => {}); transitionend
 stringsToEditor();
-
+// todo в новом li почемуто формируется span, а в ссылке вложенная ссылка если перенести строку
+//если курсор стоит после ссылки текстовые ноды вставляются новые много. нужно установить курсор правильно 
 editor.oninput = e => { 
     lastAction = e.inputType;
+
+    if (e.data === '/') {
+        const sel = document.getSelection();
+        const range = sel.getRangeAt(0);
+        const textNode = sel.anchorNode;
+        if (textNode?.parentElement?.tagName !== 'A') return;
+        //todo проверка если это конец слова то ничего не делать и стереть слеш
+        const a = textNode.parentElement;
+        const rawText = textNode.textContent;
+        const slashPosition = sel.anchorOffset;
+        const left = rawText.slice(0, slashPosition - 1);
+        textNode.textContent = left;
+        const right = rawText.slice(slashPosition);
+        const newA = document.createElement('a');
+        newA.textContent = right;
+        a.after(newA);
+        //todo переместить курсор
+    }
+    
     //e.preventDefault(); нельзя отменить тк срабатывает после изменения
-    if (['deleteContentForward', 'deleteContentBackward'].includes(e.inputType) && !editor.children.length) {
-        editor.append(document.createElement('li'));
-    } 
+    //onbeforeinput отменить можно
+
     // else 
     // if (e.inputType === 'insertParagraph') {
     //     for (let li of editor.children) {
