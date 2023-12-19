@@ -274,7 +274,6 @@ exitEditorButton.onclick = () => {
 //чтобы создать строковую ссылку на объект использовать getRandomInt(0, 10000)
 //и записать его в obj = {}; obj[data-id] = syllable
 
-let lastAction;
 let records
 const observer = new MutationObserver((list) => {
     const added = [];
@@ -446,17 +445,30 @@ stringsToEditor();
 // todo в новом li почемуто формируется span, а в ссылке вложенная ссылка если перенести строку
 //если курсор стоит после ссылки текстовые ноды вставляются новые много. нужно установить курсор правильно 
 editor.onbeforeinput = e => { 
-    lastAction = e.inputType;
+    const sel = document.getSelection();
+    if (sel.type !== 'Caret') return;
+    const range = sel.getRangeAt(0);
 
     if (e.data === '/') {
         e.preventDefault();
-        const sel = document.getSelection();
-        const range = sel.getRangeAt(0);
         const textNode = sel.anchorNode;
         const rawText = textNode.textContent;
-        if (textNode?.parentElement?.tagName !== 'A' || !sel.anchorOffset || sel.anchorOffset === rawText.length) return; 
-        //todo сделать для удобства ручной разбивки. при sel.anchorOffset === rawText.length создается новый пустой 'a' впереди и переводится на него курсор
+        if (textNode?.parentElement?.tagName !== 'A' || !sel.anchorOffset) return; 
         const a = textNode.parentElement;
+
+        if (range.startOffset === rawText.length) {
+            const newA = document.createElement('a');
+            newA.textContent = ' ';
+            newA.style.whiteSpace = 'pre';
+            a.after(newA);
+            sel.removeAllRanges();
+            const newRange = document.createRange();
+            newRange.setStart(newA.firstChild, 1);
+            newRange.setEnd(newA.firstChild, 1);
+            sel.addRange(newRange);
+            return;
+        }
+        
         const slashPosition = sel.anchorOffset;
         const left = rawText.slice(0, slashPosition);
         const right = rawText.slice(slashPosition);
@@ -468,7 +480,10 @@ editor.onbeforeinput = e => {
         range.setEnd(newA, 0);
     } 
     else if (e.data === '_') {
-
+        e.preventDefault();
+        const textNode = sel.anchorNode;
+    } else if (e.data === ' ') {
+        //похожий алгоритм на тот что выше
     }
     
     //e.preventDefault(); нельзя отменить тк срабатывает после изменения
