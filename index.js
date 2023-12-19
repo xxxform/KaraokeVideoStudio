@@ -289,13 +289,12 @@ const observer = new MutationObserver((list) => {
         }
     });
 
-    if (!editor.children.length) {
+    if (!editor.childNodes.length) {
         editor.append(document.createElement('li'));
     }
 
     //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
-    //баг. [всё] выделить вставить
-    //баг. выделить две полные строки и вставить символ с клавиатуры будет обернут в span и всё сломает
+    //баг. выделить вручную две полные строки и вставить символ с клавиатуры будет обернут в span и всё сломает
     for (let additon of added) {
         if (additon.nodeType === Node.TEXT_NODE && additon?.parentElement?.tagName !== 'A') {
             let a = document.createElement('a');
@@ -353,6 +352,30 @@ editor.oncut = e => {
      */
 }
 
+//функция вернёт следующий элемент диапазона
+//это может быть a, br
+//сюда можно передавать как textNode так и а или li
+const getNextElement = element => {
+    if (element.tagName === 'LI') return element.firstElementChild;
+    if (element.nodeType === Node.TEXT_NODE) return element.parentElement;
+}
+
+const getElement = start => {
+    if (start.tagName === 'UL') start = start.firstElementChild;
+    if (start.tagName === 'LI') start = start.firstElementChild; //br || a
+    if (start.nodeType === Node.TEXT_NODE) start = start.parentElement;
+}
+
+const getElementsInRange = (start, end) => {
+    start = getElement(start);
+    end = getElement(end);
+
+}
+
+document.onselectionchange = () => {
+    console.log(document.getSelection());
+  };
+
 editor.onpaste = async e => {
     e.preventDefault();
     let text = (e.originalEvent || e).clipboardData.getData('text/plain');
@@ -360,44 +383,43 @@ editor.onpaste = async e => {
 
     const sel = window.getSelection();
 
-    if (sel.rangeCount) { //range startContainer всегда первее в dom чем end
-        const range = sel.getRangeAt(0); //range start offset и end содержит позицию каретки
-        //вставлять после первого элемента и чуть стереть если range.startOffset 
-        let startTextNode = range.startContainer;
-        let endTextNode = range.endContainer;
+    if (sel.rangeCount) { //меняем выделение на правильное
+        const range = sel.getRangeAt(0);
+        const start = range.startContainer;
+        let end = range.endContainer;
 
-        // //значит выделили всё в firefox или вставляем в пустой ul
-        // if (range.startContainer.nodeType !== Node.TEXT_NODE) { 
-        // } если мы вставляем в пустой li
-        //range.collapse(true); свернет диапазон в начало
+        if (['LI', 'A'].includes(start.tagName)) {
+            range.setStartBefore(start.closest('li'));
+        } else
+        if (start.nodeType === Node.TEXT_NODE) {
+            const a = start.parentElement;
+            const li = a.parentElement;
+            const isFirst = li.children[0] === a;
+            const isAllSelect = !range.startOffset && (end !== start || range.endOffset === end.textContent.length);
 
-        let startA = startTextNode.parentElement;
-        let endA = endTextNode.parentElement;
-
-        let alla = editor.querySelectorAll('a');
-        let startAIndex = Array.prototype.indexOf.call(alla, startA) //todo startA может быть пустой строкой li на которой стоит курсор
-        let endAIndex = Array.prototype.indexOf.call(alla, endA);
-
-        for (let i = startAIndex; i <= endAIndex; i++) {
-            const li = alla[i].parentElement;
-            alla[i].remove();
-            if (i !== startAIndex && !li.children.length) li.remove();
+            if (isFirst && isAllSelect) range.setStartBefore(li);
         }
 
+        if (['LI', 'A'].includes(end.tagName)) {
+            range.setEndAfter(end.closest('li'));
+        } else
+        if (end.nodeType === Node.TEXT_NODE) {
+            const a = end.parentElement;
+            const li = a.parentElement;
+            const isLast = li.children[li.children.length - 1] === a || a.nextElementSibling?.tagName === 'BR';
+            const isAllSelect = range.endOffset === end.textContent.length;
+
+            if (isLast && isAllSelect) range.setEndAfter(li);
+        }
+
+        range.deleteContents();
         range.insertNode(document.createTextNode(text));
-        //startRangeTextNode.parentElement.after(document.createTextNode(text));
 
-        //const deleted = range.extractContents();//deleteContents если было что то выделено, оно будет заменено
-
-        //todo придется делать пошаговое ручное удаление выделенного range перед вставкой. или же mutationobserver'ом отследить все вставленные div'ы и превращать их в li их 
-        //или что проще установить наблюдатель изменений за содержимым. если в a нет текста - удалить его
-        //range.insertNode(document.createTextNode(text));
+        //todo здесь именно в этом блоке необходимо разбить вставленный текст на li и вставить
     }
     return;
-    //
   
     //onselectionstart на contenteditable вычислять и navigator.clipboard.readText() если поддерживается и заменять его на чистый
-    await navigator.clipboard.writeText(e.clipboardData.getData('text/plain'));
     
     // const strs = text.split('\n');
 
@@ -467,8 +489,8 @@ editor.onbeforeinput = e => {
         const range = sel.getRangeAt(0);
         const textNode = sel.anchorNode;
         const rawText = textNode.textContent;
-        if (textNode?.parentElement?.tagName !== 'A' || !sel.anchorOffset || sel.anchorOffset === rawText.length) return;
-        
+        if (textNode?.parentElement?.tagName !== 'A' || !sel.anchorOffset || sel.anchorOffset === rawText.length) return; 
+        //todo сделать для удобства ручной разбивки. при sel.anchorOffset === rawText.length создается новый пустой 'a' впереди и переводится на него курсор
         const a = textNode.parentElement;
         const slashPosition = sel.anchorOffset;
         const left = rawText.slice(0, slashPosition);
