@@ -352,125 +352,90 @@ editor.oncut = e => {
      */
 }
 
-//функция вернёт следующий элемент диапазона
-//это может быть a, br
-//сюда можно передавать как textNode так и а или li
-const getNextElement = element => {
-    if (element.tagName === 'LI') return element.firstElementChild;
-    if (element.nodeType === Node.TEXT_NODE) return element.parentElement;
-}
-
-const getElement = start => {
-    if (start.tagName === 'UL') start = start.firstElementChild;
-    if (start.tagName === 'LI') start = start.firstElementChild; //br || a
-    if (start.nodeType === Node.TEXT_NODE) start = start.parentElement;
-}
-
-const getElementsInRange = (start, end) => {
-    start = getElement(start);
-    end = getElement(end);
-
-}
-
-document.onselectionchange = () => {
-    console.log(document.getSelection());
-  };
-
 editor.onpaste = async e => {
     e.preventDefault();
     let text = (e.originalEvent || e).clipboardData.getData('text/plain');
     text = text.replaceAll(/\r\n/g, '\n');
 
     const sel = window.getSelection();
+    const range = sel.getRangeAt(0);
 
-    if (sel.rangeCount) { //меняем выделение на правильное
-        const range = sel.getRangeAt(0);
-        const start = range.startContainer;
-        let end = range.endContainer;
+    if (!sel.rangeCount) return;
+        
+    const start = range.startContainer;
+    let end = range.endContainer;
 
-        if (['LI', 'A'].includes(start.tagName)) {
-            range.setStartBefore(start.closest('li'));
-        } else
-        if (start.nodeType === Node.TEXT_NODE) {
-            const a = start.parentElement;
-            const li = a.parentElement;
-            const isFirst = li.children[0] === a;
-            const isAllSelect = !range.startOffset && (end !== start || range.endOffset === end.textContent.length);
+    //устанавливает правильное выделение перед 
+    if (['LI', 'A'].includes(start.tagName)) {
+        range.setStartBefore(start.closest('li'));
+    } else
+    if (start.nodeType === Node.TEXT_NODE) {
+        const a = start.parentElement;
+        const li = a.parentElement;
+        const isFirst = li.children[0] === a;
+        const isAllSelect = !range.startOffset && (end !== start || range.endOffset === end.textContent.length);
 
-            if (isFirst && isAllSelect) range.setStartBefore(li);
-        }
-
-        if (['LI', 'A'].includes(end.tagName)) {
-            range.setEndAfter(end.closest('li'));
-        } else
-        if (end.nodeType === Node.TEXT_NODE) {
-            const a = end.parentElement;
-            const li = a.parentElement;
-            const isLast = li.children[li.children.length - 1] === a || a.nextElementSibling?.tagName === 'BR';
-            const isAllSelect = range.endOffset === end.textContent.length;
-
-            if (isLast && isAllSelect) range.setEndAfter(li);
-        }
-
-        range.deleteContents();
-        range.insertNode(document.createTextNode(text));
-
-        //todo здесь именно в этом блоке необходимо разбить вставленный текст на li и вставить
+        if (isFirst && isAllSelect) range.setStartBefore(li);
     }
-    return;
-  
-    //onselectionstart на contenteditable вычислять и navigator.clipboard.readText() если поддерживается и заменять его на чистый
-    
-    // const strs = text.split('\n');
 
-    // strs.map(str => {
-    //     const li = document.createElement('li');
-    //     str = str.replaceAll(/( |^)([бвгджзйклмнпрстфхцчшщ]{1})( )/gi, "$1$2_");
+    if (['LI', 'A'].includes(end.tagName)) {
+        range.setEndAfter(end.closest('li'));
+    } else
+    if (end.nodeType === Node.TEXT_NODE) {
+        const a = end.parentElement;
+        const li = a.parentElement;
+        const isLast = li.children[li.children.length - 1] === a || a.nextElementSibling?.tagName === 'BR';
+        const isAllSelect = range.endOffset === end.textContent.length;
 
-    //     str = str.split(' ').filter(s => s).forEach(function hanlder(word) {
-    //         if (word.includes('-')) {
-    //             word.split('-').forEach(hanlder);//если в слове несколько тире некорректно
-    //             li.lastChild.previousSibling.textContent += '-';
-    //             return;
-    //         }
+        if (isLast && isAllSelect) range.setEndAfter(li);
+    }
+    //
+    range.deleteContents();
 
-    //         if (autoSplit.checked) {
-    //             convert(word).split('/').forEach(syllable => {
-    //                 const span = document.createElement('span');
-    //                 span.textContent = syllable;
-    //                 li.append(span);
-    //             });
-    //         } else {
-    //             const span = document.createElement('span');
-    //             span.textContent = word;
-    //             li.append(span);
-    //         }
+    //range.selectNodeContents(textNode); обвести элемент выделением
 
-    //         li.lastChild.textContent += ' '; //пробел в конце слова
+    range.insertNode(document.createTextNode(text));
 
-    //         editor.append(li);
-    //     });
-
-    //     return li;
-    // });
-    // //разбить по пробелам и '-', обернуть в span'ы
-
-    // const [first, ...others] = strs;
-    // //вставить strs[0] на место курсора в текущую строку, остальные вставить следующими строками
-
-    
-    
-    // var range = document.getSelection().getRangeAt(0);
-    // range.deleteContents();
-    
-    // var textNode = document.createTextNode(text);
-    // range.insertNode(textNode);
-    // range.selectNodeContents(textNode);
-    // range.collapse(false);
-
-    // var selection = window.getSelection();
+    //todo здесь именно в этом блоке необходимо разбить вставленный текст на li и вставить
     // selection.removeAllRanges();
-    // selection.addRange(range);
+    
+    return
+    const strs = text.split('\n');
+
+    strs.map(str => {
+        const li = document.createElement('li');
+        str = str.replaceAll(/( |^)([бвгджзйклмнпрстфхцчшщ]{1})( )/gi, "$1$2_");
+
+        str = str.split(' ').filter(s => s).forEach(function hanlder(word) {
+            if (word.includes('-')) {
+                word.split('-').forEach(hanlder);//если в слове несколько тире некорректно
+                li.lastChild.previousSibling.textContent += '-';
+                return;
+            }
+
+            if (autoSplit.checked) {
+                convert(word).split('/').forEach(syllable => {
+                    const span = document.createElement('span');
+                    span.textContent = syllable;
+                    li.append(span);
+                });
+            } else {
+                const span = document.createElement('span');
+                span.textContent = word;
+                li.append(span);
+            }
+
+            li.lastChild.textContent += ' '; //пробел в конце слова
+
+            editor.append(li);
+        });
+
+        return li;
+    });
+    //разбить по пробелам и '-', обернуть в span'ы
+
+    const [first, ...others] = strs;
+    //вставить strs[0] на место курсора в текущую строку, остальные вставить следующими строками
 }
 
 const stringsToEditor = () => {

@@ -195,12 +195,18 @@
             }
             #editor {
                 min-width: 50%;
-                > li > a {
-                    background-color: rgba(44, 155, 136, 0.7);
-                    border-radius: 21%;
-                    text-decoration: none;
-                    /* white-space: pre; */
+                > li {
+                    > a {
+                        background-color: rgba(44, 155, 136, 0.7);
+                        border-radius: 21%;
+                        text-decoration: none;
+                        /* white-space: pre; */
+                    }
+                    > a:nth-child(2n+2) {
+                        background-color: rgba(44, 155, 136, 0.4);
+                    }
                 }
+
                 /* > li > a:first-child::before {
                     content: '))))';
                 } */
