@@ -1,9 +1,10 @@
 let started = false;
 let recording = false;
-let strings = [
-    [{syllable: 'Вве', time: -1}, {syllable: 'ди', time: -1}, {syllable: 'те ', time: -1}, {syllable: 'текст', time: -1}],
-    [{syllable: 'En', time: -1}, {syllable: 'ter ', time: -1}, {syllable: 'the ', time: -1}, {syllable: 'text', time: -1}]
+let placeholderStrings = [
+    [['Вве', -1], ['ди', -1], ['те ', -1], ['текст', -1]],
+    [['En', -1], ['ter ', -1], ['the ', -1], ['text', -1]]
 ]; 
+let strings = editor.children;
 let syllableCursor = -1;
 let stringCursor = 0;
 let isSecondString = false;
@@ -12,12 +13,14 @@ let timelineDuration = scale.textContent = 10; //в секундах
 let timelinePosition = 0;
 let timelineTimer = -1;
 let spanSyllableMap = new WeakMap();
+let syllableSpanMap = new Map();
 let wordsYoffset = .75;
 let lineSpacing = 1.4;
 let fontSize = 8;
 let bgX = 0;
 let bgY = 0;
 var img = new Image;
+let songName = '';
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -101,6 +104,7 @@ canvasContext.fillStyle = "yellow";
 //пользоваться видеоредактором и использовать хромокей. 
 //Значит он может здесь создать видео с ритмическим караоке текстом, удалить хромокей в видеоредакторе и вставить свое видео
 //видео в планах extra
+//задачи для видео. смещение по времени, так как минусовка может не попадать
 
 //Откудать брать аудио. Если есть аудио то с него(в приоритете). Если аудио нет а есть видео, берём с видео. 
 //аудио controls при наличии видео управляет и видео
@@ -108,34 +112,38 @@ canvasContext.fillStyle = "yellow";
 //когда  пуст
 
 //todo воркер для стрима видео на canvas
-//https://developer.mozilla.org/en-US/docs/Web/API/MediaSourceHandle только chrome
+//https://developer.mozilla.org/en-US/docs/Web/API/MediaSourceHandle только chromium
 
+//todo возможность редактировать(удалять изменять склеивать) слоги в таймлайне. даблклик активирует редактор навешивает на span contenteditable.
+//или инструменты клей и ножницы в тулбаре с соответствующими кликами 
 
 let bgWithPad;
 
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
-    const string = strings[stringIndex].map(({syllable}) => syllable);
-    const text = string.join('');
+    const string = strings[stringIndex];
+    let text = string.textContent;
     const metrics = canvasContext.measureText(text); //если будет тормозить сделать кеширование в Map string: x для всех строк
     const x = textCanvas.width / 2 - metrics.width / 2;
     const y = textCanvas.height * wordsYoffset + ((stringIndex % 2) ? metrics.fontBoundingBoxDescent * lineSpacing : 0); //todo после перехода на vh удалить привязку к metrics
     const halfOfLineSpacing = (metrics.fontBoundingBoxDescent * lineSpacing / 2);
 
-    // if (stringIndex % 2) 
-    //     canvasContext.clearRect(0, y - halfOfLineSpacing / 2, textCanvas.width, textCanvas.height); //вторая строка
-    // else 
-    //     canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height * wordsYoffset + halfOfLineSpacing); //первая строка
+    // if (stringIndex % 2) canvasContext.clearRect(0, y - halfOfLineSpacing / 2, textCanvas.width, textCanvas.height); //вторая строка
+    // else canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height * wordsYoffset + halfOfLineSpacing); //первая строка
     canvasContext.clearRect(0, y, textCanvas.width, metrics.fontBoundingBoxDescent * 1.1); // * 1.1 нужен чтобы убрать следы от обводки stroke
 
     canvasContext.fillStyle = "yellow";
     canvasContext.fillText(text, x, y);
 
     if (~toSyllableIndex) {
-        const substring = string.slice(0, toSyllableIndex + 1).join('');
+        text = ''; 
+        Array.prototype.some.call(string.children, (a, i) => { //todo в вызывающей функции учесть br. они могут быть в конце
+            text += a.textContent;
+            if (i === toSyllableIndex) return true;
+        });
         canvasContext.fillStyle = "red";
-        canvasContext.fillText(substring, x, y);
+        canvasContext.fillText(text, x, y);
         canvasContext.strokeStyle = 'red';
-        canvasContext.strokeText(substring, x, y);
+        canvasContext.strokeText(text, x, y);
     } 
 
     if (recording) {
@@ -266,6 +274,11 @@ exitEditorButton.onclick = () => {
     wordEditor.style.display = '';
 }
 
+const updateLocalStorage = () => {
+    if (fileInput.files[0])
+        localStorage.setItem(fileInput.files[0].name, parseDomJson());
+}
+
 //поведение contenteditable
 //при нажатии enter посредине span, левая часть будет новым span а правая останется тем же
 //если удалить содержимое span может остаться пустая строка и если нажать enter новый span в новой строке не создастся
@@ -276,9 +289,6 @@ exitEditorButton.onclick = () => {
 
 let records
 const observer = new MutationObserver((list) => {
-    //lastOperation.type === deleteContentBackward || deleteContentForward && time 
-    //на случай, если стерли в конце/начале строки
-    //или проще сделать - в data-time записывать time и при создании syllable указывать его
     const added = [];
     const removed = [];
 
@@ -291,6 +301,11 @@ const observer = new MutationObserver((list) => {
         }
     });
 
+    // added.forEach(element => {  //у firefox проблема. br может быть в не пустой строке. вручную чистить его
+    //     if (element.tagName === 'BR')
+    //         element.remove();
+    // })
+
     if (!editor.childNodes.length) {
         editor.append(document.createElement('li'));
     }
@@ -298,6 +313,16 @@ const observer = new MutationObserver((list) => {
     //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
     //баг. выделить вручную две полные строки и вставить символ с клавиатуры будет обернут в span и всё сломает
     for (let additon of added) {
+        // if (additon.tagName === 'LI' && !additon.children.length) { 
+        //     let a = document.createElement('a');
+        //     a.append(document.createTextNode(''));
+        //     additon.append(a);
+        //     var sel = window.getSelection();
+        //     var range = sel.getRangeAt(0);
+        //     range.setStart(a.firstChild, 0);
+        //     range.setEnd(a.firstChild, 0); 
+        //     continue
+        // }
         if (additon.nodeType === Node.TEXT_NODE && additon?.parentElement?.tagName !== 'A') {
             let a = document.createElement('a');
             a.textContent = additon.textContent;
@@ -338,10 +363,11 @@ const observer = new MutationObserver((list) => {
     }
 
     records = [added, removed];
-
 });
 
  observer.observe(editor, { childList: true, subtree: true, characterData: true })
+
+ editor.onblur = updateLocalStorage;
 
 editor.oncut = e => {
     //можно сохранить выделенное в Range.surroundContents(docfragment)
@@ -459,12 +485,8 @@ stringsToEditor();
 // todo в новом li почемуто формируется span, а в ссылке вложенная ссылка если перенести строку
 //если курсор стоит после ссылки текстовые ноды вставляются новые много. нужно установить курсор правильно 
 //todo кнопка клей и cut
-let lastOperation = {type: 0, time: 0};
 
 editor.onbeforeinput = e => { 
-    lastOperation.type = e.inputType;
-    lastOperation
-
     const sel = document.getSelection();
     if (sel.type !== 'Caret') return;
     const range = sel.getRangeAt(0);
@@ -479,7 +501,6 @@ editor.onbeforeinput = e => {
         if (range.startOffset === rawText.length) {
             const newA = document.createElement('a');
             newA.textContent = ' ';
-            newA.style.whiteSpace = 'pre';
             a.after(newA);
             sel.removeAllRanges();
             const newRange = document.createRange();
@@ -548,20 +569,34 @@ backgroundColor.oninput = () => {
 }
 
 const parseJsonWords = strings => {
+    editor.innerHTML = '';
     strings.forEach(string => {
         const li = document.createElement('li');
-        string.forEach(word => {
+        string.forEach(([word, time]) => {
             const a = document.createElement('a'); 
-            a.textContent = word.syllable;
+            a.textContent = word;
+            if (isFinite(time)) a.dataset.time = time;
             li.append(a);
         });
         editor.append(li);
     });
 }
 
+const parseDomJson = () => {
+    const lis = [];
+    for (let li of strings) {
+        const string = [];
+        li.querySelectorAll('a, br:first-child').forEach(word => {
+            string.push([word.textContent, isFinite(word.dataset.time) ? word.dataset.time : -1]);
+        });
+        lis.push(string);
+    }
+    return JSON.stringify(lis);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     bgCanvasContext.fillStyle = backgroundColor.value;
-    parseJsonWords(strings);
+    parseJsonWords(placeholderStrings);
     drawPad();
     drawString(0);
     drawString(1);
@@ -588,9 +623,7 @@ const run = async () => {
 };
 
 render.onclick = async () => {
-    const name = fileInput.files[0].name;
-    const fileName = name.slice(0, name.lastIndexOf('.'))
-    const suggestedName = fileName + "(Караоке).webm";
+    const suggestedName = songName + "(Караоке).webm";
     const handle = await window.showSaveFilePicker({ suggestedName });
     const writable = await handle.createWritable();
     //https://web.dev/patterns/files/save-a-file?hl=ru#js todo showSaveFilePicker есть только в chrome
@@ -647,11 +680,6 @@ async function getDesktop() {
     return await navigator.mediaDevices.getDisplayMedia({video: true});
 }
 
-const updateLocalStorage = () => {
-    if (fileInput.files[0])
-        localStorage.setItem(fileInput.files[0].name, JSON.stringify({rawText: textarea.value, strings}));
-}
-
 const getTimelinePercent = (time = audio.currentTime) => 
     (time - timelinePosition) / (timelineDuration / 100);
 
@@ -696,7 +724,7 @@ const createSyllableMap = e => {
 
 }
 
-splitButton.onclick = () => {
+splitButton.onclick = () => { //todo 
     textarea.value = textarea.value
         .split('\n')
         .map(string => {
@@ -727,8 +755,11 @@ textarea.onchange = () => {createSyllableMap(); updateLocalStorage();}
 const setCursorPosition = () => { //устанавливает позицию курсора на следующий слог
     let syllableIndex = -1;
     
-    const stringIndex = strings.findIndex(string => { //если отмотать назад, ставит неправильно
-        let index = string.findIndex(syllable => syllable.time === -1 || syllable.time > audio.currentTime);
+    const stringIndex = Array.prototype.findIndex.call(strings, string => { 
+        let index = Array.prototype.findIndex.call(string.children, syllableTag => {
+            const time = +syllableTag.dataset.time;
+            return isNaN(time) || time === -1 || time > audio.currentTime
+        });
         if (~index) {
             syllableIndex = index;
             return true;
@@ -757,12 +788,13 @@ const showStringsByPosition = () => {
 
 fileInput.onchange = () => {
     if (fileInput.files[0]) {
+        const name = fileInput.files[0].name;
+        songName = name.slice(0, name.lastIndexOf('.'));
         audio.src = (window.URL || window.webkitURL).createObjectURL(fileInput.files[0]);
         let savedSong = localStorage.getItem(fileInput.files[0].name);
         
         if (savedSong && confirm(`Найдена сохраненная версия караоке этой песни. Загрузить её?`)) {
-            savedSong = JSON.parse(savedSong);
-            strings = savedSong.strings;
+            parseJsonWords(JSON.parse(savedSong));
             stringCursor = 0;
             syllableCursor = 0;
             showStringsByPosition();
@@ -812,7 +844,7 @@ const runCursor = () => {
 
 const shiftWordCursors = () => {
     let currentString = strings[stringCursor];
-    let nextSyllable = currentString[syllableCursor + 1];
+    let nextSyllable = currentString.children[syllableCursor + 1];
     if (nextSyllable) syllableCursor++; //следующий слог
     else { //строка закончилась, удалить её и заменить на следующую. перевести курсор на second/first
         syllableCursor = 0; //тут обновить в интерфейсе строки
@@ -833,20 +865,25 @@ const shiftWordCursors = () => {
 
 const play = () => {
     let currentString = strings[stringCursor];
-    let nextSyllable = currentString[syllableCursor];
-    let timeToNext = (nextSyllable.time - audio.currentTime) * 1000;
-    if (timeToNext < 0) return;
+    let nextSyllable = currentString.children[syllableCursor];
+    const time = +nextSyllable.dataset.time;
+    let timeToNext = (time - audio.currentTime) * 1000;
+    if (isNaN(time) || timeToNext < 0) return;
     
     timer = setTimeout(function show(syllable) {
         drawString(stringCursor, syllableCursor);
-        if (syllable.timelineSpan?.classList) syllable.timelineSpan.classList.add('color');
+        if (!recording) {
+            const span = syllableSpanMap.get(syllable);
+            if (span?.classList) span.classList.add('color');
+        }
+        
         shiftWordCursors();
         if (stringCursor === -1) return;
         currentString = strings[stringCursor];
-        nextSyllable = currentString[syllableCursor];
-
-        let timeToNext = (nextSyllable.time - audio.currentTime) * 1000;
-        if (timeToNext < 0) return;
+        nextSyllable = currentString.children[syllableCursor];
+        const time = +nextSyllable.dataset.time;
+        let timeToNext = (time - audio.currentTime) * 1000;
+        if (isNaN(time) || timeToNext < 0) return;
         timer = setTimeout(show, timeToNext, nextSyllable);
     }, timeToNext, nextSyllable);
 
@@ -862,24 +899,26 @@ const clickHandler = () => { // как из js изменить css класс �
 
     if (!~stringCursor) return;
     let currentString = strings[stringCursor];
-    let syllable = currentString[syllableCursor];
-    syllable.time = audio.currentTime;
+    let syllable = currentString.children[syllableCursor];
+    syllable.dataset.time = audio.currentTime;
     //syllable.element.classList.add('color');
     drawString(stringCursor, syllableCursor);
 
     shiftWordCursors();
 
     const currentPercent = (audio.currentTime - timelinePosition) / (timelineDuration / 100) + '%';
-    if (syllable.timelineSpan?.style) { //секунд от начала timelinePosition
-        syllable.timelineSpan.style.left = currentPercent;
+    const span = syllableSpanMap.get(syllable);
+    if (span?.style) { //секунд от начала timelinePosition 
+        span.style.left = currentPercent;
         clearTimeout(timer);
         play();
     } else {
-        syllable.timelineSpan = document.createElement('span');
-        syllable.timelineSpan.textContent = syllable.syllable;
-        spanSyllableMap.set(syllable.timelineSpan, syllable);
-        syllable.timelineSpan.style.left = currentPercent;
-        words.append(syllable.timelineSpan);
+        const span = document.createElement('span');
+        span.textContent = syllable.textContent; //todo здесь span.textContent может рассинхронизироваться при редактировании
+        syllableSpanMap.set(syllable, span);
+        spanSyllableMap.set(span, syllable);
+        span.style.left = currentPercent;
+        words.append(span);
     } 
 }
 
@@ -888,22 +927,23 @@ const showTimeline = (from, duration) => {
     cursor.style.transitionDuration = '0s';
     cursor.style.left = '0%';
     words.innerHTML = '';
+    //узкое место. будет тормозить - ориентироваться на курсор
+    editor.querySelectorAll('a, li > br:first-child').forEach(syllable => {
+        const time = +syllable.dataset.time;
+        if (!(from <= time && time < from + duration)) return;
 
-    const wordList = strings.flat().filter(({time}) => {
-        return time >= from && time < from + duration;
-    });
-    wordList.forEach(word => {
-        word.timelineSpan = document.createElement('span');
-        word.timelineSpan.textContent = word.syllable;
-        spanSyllableMap.set(word.timelineSpan, word);
-        word.timelineSpan.classList.remove('color');
-        const relativeTime = word.time - from; //секунд от начала from для word
+        const span = document.createElement('span');
+        span.textContent = syllable.textContent;
+        syllableSpanMap.set(syllable, span);
+        spanSyllableMap.set(span, syllable);
+        
+        const relativeTime = time - from; //секунд от начала from для word
         const secondInOnePersent = duration / 100; 
         const res = relativeTime / secondInOnePersent; // сколько процентов в rel;
         //перевести секунды
-        word.timelineSpan.style.left = res + '%';
-        words.append(word.timelineSpan);
-    })
+        span.style.left = res + '%';
+        words.append(span);
+    });
 }
 
 const updateTimelineDuration = () => {
@@ -925,7 +965,10 @@ plus.onclick = () => {
     updateTimelineDuration();
 }
 minus.onclick = () => {
-    scale.textContent = timelineDuration += 3;
+    const newVal = timelineDuration + 3;
+    if (newVal < audio.duration) return;
+    scale.textContent = timelineDuration = newVal;
+    updateTimelineDuration();
 
     //todo анимация подсветки возможности ввода через outline
     //scale.classList.add('active');
@@ -949,7 +992,7 @@ minus.onclick = () => {
 audio.onplay = e => {
     setCursorPosition();
     showStringsByPosition();
-    runCursor();
+    if (!recording) runCursor();
     play();
     main.onmousedown = main.ontouchstart = clickHandler;
     started = true;
@@ -965,8 +1008,6 @@ audio.onpause = e => {
     started = false;
     updateLocalStorage(); //todo 
 }
-
-main.addEventLi
 
 /*
 multipleSelectionMode
@@ -1035,7 +1076,7 @@ words.onmousedown = words.ontouchstart = e => {
         if (!(prevSpan < newPercent && newPercent < nextSpan)) return;
         
         const currentTime = timelinePosition + newPercent * secondInOnePercent;
-        syllable.time = currentTime;
+        syllable.dataset.time = currentTime;
         e.target.style.left = newPercent + '%';
     }
 
@@ -1056,7 +1097,7 @@ words.onmousedown = words.ontouchstart = e => {
             const syllable = spanSyllableMap.get(span);
             const newPercent = parseFloat(span.style.left) + deltaPercent;
             const currentTime = timelinePosition + newPercent * secondInOnePercent;
-            syllable.time = currentTime;
+            syllable.dataset.time = currentTime;
             span.style.left = newPercent + '%';
         });
     }

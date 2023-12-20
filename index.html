@@ -202,11 +202,17 @@
                     > a:nth-child(2n+2) {
                         background-color: rgba(44, 155, 136, 0.4);
                     }
+                    > a:empty {
+                        display: inline-block;
+                        min-width: 1em;
+                        min-height: 1em;
+                    }
                 }
 
                 /* > li > a:first-child::before {
                     content: '))))';
                 } */
+                /* white-space: pre; нельзя тк сверху появится пустая строка*/
                 /* white-space: pre-wrap;  */
                 /* display: inline-block; */
             }
