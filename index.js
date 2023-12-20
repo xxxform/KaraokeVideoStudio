@@ -276,6 +276,9 @@ exitEditorButton.onclick = () => {
 
 let records
 const observer = new MutationObserver((list) => {
+    //lastOperation.type === deleteContentBackward || deleteContentForward && time 
+    //на случай, если стерли в конце/начале строки
+    //или проще сделать - в data-time записывать time и при создании syllable указывать его
     const added = [];
     const removed = [];
 
@@ -364,7 +367,7 @@ editor.onpaste = async e => {
     const start = range.startContainer;
     let end = range.endContainer;
 
-    //устанавливает правильное выделение перед 
+    //устанавливает правильное выделение перед удалением 
     if (['LI', 'A'].includes(start.tagName)) {
         range.setStartBefore(start.closest('li'));
     } else
@@ -389,52 +392,63 @@ editor.onpaste = async e => {
         if (isLast && isAllSelect) range.setEndAfter(li);
     }
     //
-    range.deleteContents();
-
-    //range.selectNodeContents(textNode); обвести элемент выделением
-
-    range.insertNode(document.createTextNode(text));
-
-    //todo здесь именно в этом блоке необходимо разбить вставленный текст на li и вставить
-    // selection.removeAllRanges();
-    
-    return
-    const strs = text.split('\n');
-
-    strs.map(str => {
+    const strs = text.split('\n').map(str => {
         const li = document.createElement('li');
+        
         str = str.replaceAll(/( |^)([бвгджзйклмнпрстфхцчшщ]{1})( )/gi, "$1$2_");
 
-        str = str.split(' ').filter(s => s).forEach(function hanlder(word) {
+        str = str.split(' ').filter(s => s).forEach(word => {
+            const addSyllable = syllable => {
+                const a = document.createElement('a');
+                a.textContent = syllable.replaceAll('_', ' ');
+                li.append(a);
+            }
+
+            const handler = word => {
+                if (autoSplit.checked) convert(word).split('/').forEach(addSyllable);
+                else addSyllable(word);
+            }
+
             if (word.includes('-')) {
-                word.split('-').forEach(hanlder);//если в слове несколько тире некорректно
-                li.lastChild.previousSibling.textContent += '-';
+                word.split('-').forEach((word, i, arr) => {
+                    handler(word);
+                    if (i !== arr.length - 1)
+                        li.lastChild.textContent += '-'
+                });
+                li.lastChild.textContent += ' ';
                 return;
             }
+            
+            handler(word);
 
-            if (autoSplit.checked) {
-                convert(word).split('/').forEach(syllable => {
-                    const span = document.createElement('span');
-                    span.textContent = syllable;
-                    li.append(span);
-                });
-            } else {
-                const span = document.createElement('span');
-                span.textContent = word;
-                li.append(span);
-            }
-
-            li.lastChild.textContent += ' '; //пробел в конце слова
-
-            editor.append(li);
+            li.lastChild.textContent += ' ';
         });
 
         return li;
     });
-    //разбить по пробелам и '-', обернуть в span'ы
 
-    const [first, ...others] = strs;
-    //вставить strs[0] на место курсора в текущую строку, остальные вставить следующими строками
+    let beforeStartElement;
+    //первая строка выделена не полностью
+    if (range.startContainer.nodeType === Node.TEXT_NODE) { 
+        beforeStartElement = start.parentElement; //a
+        range.deleteContents();
+        const [first, ...others] = strs;
+        beforeStartElement.after(...first.children);
+        beforeStartElement.parentElement.after(...others);
+    } else {
+        const lis = editor.children;
+        beforeStartElement = lis[range.startOffset - 2];
+        range.deleteContents();
+
+        if (!beforeStartElement) {
+            beforeStartElement = editor;
+            editor.append(...strs);
+        } else {
+            beforeStartElement.after(...strs);
+        }
+    }
+    
+    //range.selectNodeContents(textNode); обвести элемент выделением
 }
 
 const stringsToEditor = () => {
@@ -444,11 +458,17 @@ const stringsToEditor = () => {
 stringsToEditor();
 // todo в новом li почемуто формируется span, а в ссылке вложенная ссылка если перенести строку
 //если курсор стоит после ссылки текстовые ноды вставляются новые много. нужно установить курсор правильно 
+//todo кнопка клей и cut
+let lastOperation = {type: 0, time: 0};
+
 editor.onbeforeinput = e => { 
+    lastOperation.type = e.inputType;
+    lastOperation
+
     const sel = document.getSelection();
     if (sel.type !== 'Caret') return;
     const range = sel.getRangeAt(0);
-
+    
     if (e.data === '/') {
         e.preventDefault();
         const textNode = sel.anchorNode;
@@ -483,7 +503,8 @@ editor.onbeforeinput = e => {
         e.preventDefault();
         const textNode = sel.anchorNode;
     } else if (e.data === ' ') {
-        //похожий алгоритм на тот что выше
+        //похожий алгоритм на тот что выше. только применяй convert к предыдущему слогу при autoSplit(на случай если пользователь написал слово)
+        //но если нажали пробел в textNode соответствующему одному согласному(частица) то ничего не делать
     }
     
     //e.preventDefault(); нельзя отменить тк срабатывает после изменения
