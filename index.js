@@ -5,6 +5,7 @@ let placeholderStrings = [
     [['En', -1], ['ter ', -1], ['the ', -1], ['text', -1]]
 ]; 
 let strings = editor.children;
+let syllables = editor.getElementsByTagName('a');
 let syllableCursor = -1;
 let stringCursor = 0;
 let isSecondString = false;
@@ -271,13 +272,17 @@ textEditToolkit.onclick = () => {
 }
 
 exitEditorButton.onclick = () => {
+    showTimeline(audio.currentTime, timelineDuration);
     wordEditor.style.display = '';
 }
 
 const updateLocalStorage = () => {
-    if (fileInput.files[0])
-        localStorage.setItem(fileInput.files[0].name, parseDomJson());
+    if (songName)
+        localStorage.setItem(songName, parseDomJson());
 }
+
+//todo если слог без data-time или time = -1 его нет на timeline
+//это проявляется когда пользователь хочет добавить обратный отсчёт
 
 //поведение contenteditable
 //при нажатии enter посредине span, левая часть будет новым span а правая останется тем же
@@ -308,9 +313,33 @@ const observer = new MutationObserver((list) => {
     //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
     //баг. выделить вручную две полные строки и вставить символ с клавиатуры будет обернут в span и всё сломает
     for (let additon of added) {
+        if (additon.tagName === 'A' && additon.firstElementChild && (additon.nextElementSibling || additon.previousElementSibling)) {
+            console.log('a with br removed');
+            additon.remove();
+        }
+        if (additon.tagName === 'A' && !additon.dataset?.time || additon.dataset?.time == -1) {
+            //проблема со сбивающимся временем слогов при редактировании enter и разбиении
+            //todo! сделать это onpaste enter
+            //todo! найти ближайший слог слева, у которого есть time. если нет - установить 0. если есть - его значение
+            //или найти справа
+            //проблема с paste, тк там вставка происходит пачкой li
+            //также будут проблемы с setCursorPosition
+            //если слева соседей нет ставим 0. если есть - его время
+            // const index = Array.prototype.indexOf.call(syllables, additon);
+            // if (index < 1) {
+            //     additon.dataset.time = 0;
+            //     continue
+            // }
+
+            // const prev = syllables[index];
+            // if (+prev.dataset.time > -1) {
+            //     additon.dataset.time = prev.dataset.time;
+            // }
+            //while(--index >= 0) {}
+        } else
         //у firefox проблема. br может быть вне a и в не пустой строке. здесь fix
         if (additon?.tagName === 'BR' && additon?.parentElement?.tagName !== 'A') {  //todo тест выяснить отсутствие кейсов возникания пустых a
-            console.log('!!!')
+            console.log('br wrapped in a');
             let a = document.createElement('a');
             a.append(document.createElement('br'));
             additon.replaceWith(a);
@@ -497,6 +526,8 @@ editor.onbeforeinput = e => {
         if (range.startOffset === rawText.length) {
             const newA = document.createElement('a');
             newA.textContent = ' ';
+            if (a.dataset.time)
+                newA.dataset.time = a.dataset.time;
             a.after(newA);
             sel.removeAllRanges();
             const newRange = document.createRange();
@@ -510,6 +541,8 @@ editor.onbeforeinput = e => {
         const left = rawText.slice(0, slashPosition);
         const right = rawText.slice(slashPosition);
         const newA = document.createElement('a');
+        if (a.dataset.time)
+            newA.dataset.time = a.dataset.time;
         textNode.textContent = left;
         newA.textContent = right;
         a.after(newA);
@@ -517,7 +550,7 @@ editor.onbeforeinput = e => {
         range.setEnd(newA, 0);
     } 
     else if (e.data === '_') {
-        e.preventDefault();
+        e.preventDefault();//установить правильное время для склейки
         const textNode = sel.anchorNode;
     } else if (e.data === ' ') {
         //похожий алгоритм на тот что выше. только применяй convert к предыдущему слогу при autoSplit(на случай если пользователь написал слово)
@@ -581,10 +614,9 @@ const parseJsonWords = strings => {
 const parseDomJson = () => {
     const lis = [];
     for (let li of strings) {
-        const string = [];
-        li.querySelectorAll('a, br:first-child').forEach(word => {
-            string.push([word.textContent, isFinite(word.dataset.time) ? word.dataset.time : -1]);
-        });
+        const string = Array.prototype.map.call(li.children, word => 
+            [word.textContent, isFinite(word.dataset.time) ? word.dataset.time : -1]
+        );
         lis.push(string);
     }
     return JSON.stringify(lis);
@@ -787,7 +819,7 @@ fileInput.onchange = () => {
         const name = fileInput.files[0].name;
         songName = name.slice(0, name.lastIndexOf('.'));
         audio.src = (window.URL || window.webkitURL).createObjectURL(fileInput.files[0]);
-        let savedSong = localStorage.getItem(fileInput.files[0].name);
+        let savedSong = localStorage.getItem(songName);
         
         if (savedSong && confirm(`Найдена сохраненная версия караоке этой песни. Загрузить её?`)) {
             parseJsonWords(JSON.parse(savedSong));
@@ -923,10 +955,12 @@ const showTimeline = (from, duration) => {
     cursor.style.transitionDuration = '0s';
     cursor.style.left = '0%';
     words.innerHTML = '';
-    //узкое место. будет тормозить - ориентироваться на курсор
-    editor.querySelectorAll('a, li > br:first-child').forEach(syllable => {
+    //будет тормозить - ориентироваться на курсор. не должно тк перебор 300 элементов с +syllable.dataset.time занял 0.3ms
+    //Курсор устанавливать как первый найденный. при перемотке назад поиск идет от курсора на убывание 
+    Array.prototype.some.call(syllables, syllable => {
         const time = +syllable.dataset.time;
-        if (!(from <= time && time < from + duration)) return;
+        if (isNaN(time) || time < from) return false;
+        if (time > from + duration) return true;
 
         const span = document.createElement('span');
         span.textContent = syllable.textContent;
@@ -956,7 +990,7 @@ scale.oninput = e => {
 
 plus.onclick = () => {
     const newVal = timelineDuration - 3;
-    if (newVal < 1) return;
+    if (newVal > 1) return;
     scale.textContent = timelineDuration = newVal;
     updateTimelineDuration();
 }
@@ -1078,7 +1112,7 @@ words.onmousedown = words.ontouchstart = e => {
 
     let multipleMoveHandler = moveEvent => {
         const fromSpan = parseFloat(spansToDrag[0].style?.left);
-        const toSpan = parseFloat(spansToDrag[spansToDrag.length - 1].style?.left);
+        const toSpan = parseFloat(spansToDrag[spansToDrag.length - 1].style?.left); //todo заменить на spansToDrat.at(-1) доступ с конца массива
         const nextSpan = parseFloat(spansToDrag[spansToDrag.length - 1].nextElementSibling?.style?.left || 100);
         const prevSpan = parseFloat(spansToDrag[0].previousElementSibling?.style?.left || 0);
 
