@@ -117,6 +117,7 @@ canvasContext.fillStyle = "yellow";
 
 //todo возможность редактировать(удалять изменять склеивать) слоги в таймлайне. даблклик активирует редактор навешивает на span contenteditable.
 //или инструменты клей и ножницы в тулбаре с соответствующими кликами 
+//todo кнопка 321. вставит к месту указателя обратный отсчёт в случае если место указателя имеет валидное время
 
 let bgWithPad;
 
@@ -277,6 +278,7 @@ exitEditorButton.onclick = () => {
     wordEditor.style.display = '';
     if (strings[stringCursor])
         strings[stringCursor].classList.remove('active');
+    //todo отрисовать текущие строки drawString. указатель смещается если было перемотано(может указывать на несуществующие элементы)
 }
 
 const updateLocalStorage = () => {
@@ -294,6 +296,17 @@ const updateLocalStorage = () => {
 //для созданных a создать атрибут data-id ссылку на объект syllable, то-же и для строк li.
 //чтобы создать строковую ссылку на объект использовать getRandomInt(0, 10000)
 //и записать его в obj = {}; obj[data-id] = syllable
+
+const setPrevSyllableTime = a => {
+    const index = Array.prototype.indexOf.call(syllables, a);
+    if (index < 1) {
+        a.dataset.time = 0;
+        return;
+    }
+
+    const prev = syllables[index];
+    if (+prev.dataset.time > -1) a.dataset.time = prev.dataset.time;
+}
 
 let records
 const observer = new MutationObserver((list) => {
@@ -320,7 +333,7 @@ const observer = new MutationObserver((list) => {
             console.log('a with br removed');
             additon.remove();
         }
-        if (additon.tagName === 'A' && !additon.dataset?.time || additon.dataset?.time == -1) {
+        if (additon.tagName === 'A' && !additon.nextElementSibling && !additon.previousElementSibling) {
             //проблема со сбивающимся временем слогов при редактировании enter и разбиении
             //todo! сделать это onpaste enter
             //todo! найти ближайший слог слева, у которого есть time. если нет - установить 0. если есть - его значение
@@ -328,16 +341,7 @@ const observer = new MutationObserver((list) => {
             //проблема с paste, тк там вставка происходит пачкой li
             //также будут проблемы с setCursorPosition
             //если слева соседей нет ставим 0. если есть - его время
-            // const index = Array.prototype.indexOf.call(syllables, additon);
-            // if (index < 1) {
-            //     additon.dataset.time = 0;
-            //     continue
-            // }
-
-            // const prev = syllables[index];
-            // if (+prev.dataset.time > -1) {
-            //     additon.dataset.time = prev.dataset.time;
-            // }
+            setPrevSyllableTime(additon);
             //while(--index >= 0) {}
         } else
         //у firefox проблема. br может быть вне a и в не пустой строке. здесь fix
@@ -346,6 +350,7 @@ const observer = new MutationObserver((list) => {
             let a = document.createElement('a');
             a.append(document.createElement('br'));
             additon.replaceWith(a);
+            setPrevSyllableTime(a);
             const range = window.getSelection().getRangeAt(0);
             range.setStart(a, 0);
             range.setEnd(a, 0);
@@ -354,6 +359,7 @@ const observer = new MutationObserver((list) => {
         if (additon.nodeType === Node.TEXT_NODE && additon?.parentElement?.tagName !== 'A') {
             let a = document.createElement('a');
             a.textContent = additon.textContent;
+            setPrevSyllableTime(a);
 
             if (additon.parentElement?.tagName === 'SPAN') 
                 additon.parentElement.replaceWith(additon); //todo работает ли этот код
@@ -446,6 +452,16 @@ editor.onpaste = async e => {
         if (isLast && isAllSelect) range.setEndAfter(li);
     }
     //
+        let beforeStartATime = -1; //todo test
+        if (range.startContainer.nodeType === Node.TEXT_NODE) {
+            beforeStartATime = start.parentElement.dataset.time;
+        } else {
+            const li = strings[range.startOffset - 1];
+            if (li?.lastElementChild) {
+                beforeStartATime = li.lastElementChild.dataset.time;
+            }
+        }
+    //
     const strs = text.split('\n').map(str => {
         const li = document.createElement('li');
         
@@ -454,6 +470,7 @@ editor.onpaste = async e => {
         str = str.split(' ').filter(s => s).forEach(word => {
             const addSyllable = syllable => {
                 const a = document.createElement('a');
+                a.dataset.time = beforeStartATime;
                 a.textContent = syllable.replaceAll('_', ' ');
                 li.append(a);
             }
@@ -490,8 +507,7 @@ editor.onpaste = async e => {
         beforeStartElement.after(...first.children);
         beforeStartElement.parentElement.after(...others);
     } else {
-        const lis = editor.children;
-        beforeStartElement = lis[range.startOffset - 1];
+        beforeStartElement = strings[range.startOffset - 1];
         range.deleteContents();
 
         if (!beforeStartElement) {
@@ -580,6 +596,10 @@ editor.onbeforeinput = e => {
     //         sel.addRange(range);
     //     }
     // }
+
+}
+
+editor.oninput = () => {
 
 }
 
@@ -945,7 +965,7 @@ const clickHandler = () => { // как из js изменить css класс �
         play();
     } else {
         const span = document.createElement('span');
-        span.textContent = syllable.textContent; //todo здесь span.textContent может рассинхронизироваться при редактировании
+        span.textContent = syllable.textContent || 'Пусто'; //todo здесь span.textContent может рассинхронизироваться при редактировании
         syllableSpanMap.set(syllable, span);
         spanSyllableMap.set(span, syllable);
         span.style.left = currentPercent;
@@ -966,7 +986,7 @@ const showTimeline = (from, duration) => {
         if (time > from + duration) return true;
 
         const span = document.createElement('span');
-        span.textContent = syllable.textContent;
+        span.textContent = syllable.textContent || 'Пусто';
         syllableSpanMap.set(syllable, span);
         spanSyllableMap.set(span, syllable);
         
@@ -993,13 +1013,13 @@ scale.oninput = e => {
 
 plus.onclick = () => {
     const newVal = timelineDuration - 3;
-    if (newVal > 1) return;
+    if (newVal < 1) return;
     scale.textContent = timelineDuration = newVal;
     updateTimelineDuration();
 }
 minus.onclick = () => {
     const newVal = timelineDuration + 3;
-    if (newVal < audio.duration) return;
+    if (newVal > audio.duration) return;
     scale.textContent = timelineDuration = newVal;
     updateTimelineDuration();
 
