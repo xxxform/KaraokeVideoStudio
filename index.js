@@ -301,11 +301,6 @@ const observer = new MutationObserver((list) => {
         }
     });
 
-    // added.forEach(element => {  //у firefox проблема. br может быть в не пустой строке. вручную чистить его
-    //     if (element.tagName === 'BR')
-    //         element.remove();
-    // })
-
     if (!editor.childNodes.length) {
         editor.append(document.createElement('li'));
     }
@@ -313,22 +308,23 @@ const observer = new MutationObserver((list) => {
     //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
     //баг. выделить вручную две полные строки и вставить символ с клавиатуры будет обернут в span и всё сломает
     for (let additon of added) {
-        // if (additon.tagName === 'LI' && !additon.children.length) { 
-        //     let a = document.createElement('a');
-        //     a.append(document.createTextNode(''));
-        //     additon.append(a);
-        //     var sel = window.getSelection();
-        //     var range = sel.getRangeAt(0);
-        //     range.setStart(a.firstChild, 0);
-        //     range.setEnd(a.firstChild, 0); 
-        //     continue
-        // }
+        //у firefox проблема. br может быть вне a и в не пустой строке. здесь fix
+        if (additon?.tagName === 'BR' && additon?.parentElement?.tagName !== 'A') {  //todo тест выяснить отсутствие кейсов возникания пустых a
+            console.log('!!!')
+            let a = document.createElement('a');
+            a.append(document.createElement('br'));
+            additon.replaceWith(a);
+            const range = window.getSelection().getRangeAt(0);
+            range.setStart(a, 0);
+            range.setEnd(a, 0);
+        } else
+
         if (additon.nodeType === Node.TEXT_NODE && additon?.parentElement?.tagName !== 'A') {
             let a = document.createElement('a');
             a.textContent = additon.textContent;
 
             if (additon.parentElement?.tagName === 'SPAN') 
-                additon.parentElement.replaceWith(additon);
+                additon.parentElement.replaceWith(additon); //todo работает ли этот код
             
             if (additon.parentElement?.tagName !== 'LI') { 
                 let li = document.createElement('li');
@@ -463,7 +459,7 @@ editor.onpaste = async e => {
         beforeStartElement.parentElement.after(...others);
     } else {
         const lis = editor.children;
-        beforeStartElement = lis[range.startOffset - 2];
+        beforeStartElement = lis[range.startOffset - 1];
         range.deleteContents();
 
         if (!beforeStartElement) {
