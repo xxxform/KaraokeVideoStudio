@@ -233,6 +233,7 @@ textEditToolkit.onclick = () => {
 
     textEditToolkit.ondblclick = () => {
         wordEditor.style.display = 'block';
+        strings[stringCursor].classList.add('active');
     }
 
     const removeHandlers = () => {
@@ -274,6 +275,8 @@ textEditToolkit.onclick = () => {
 exitEditorButton.onclick = () => {
     showTimeline(audio.currentTime, timelineDuration);
     wordEditor.style.display = '';
+    if (strings[stringCursor])
+        strings[stringCursor].classList.remove('active');
 }
 
 const updateLocalStorage = () => {
