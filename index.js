@@ -117,8 +117,15 @@ canvasContext.fillStyle = "yellow";
 
 //todo возможность редактировать(удалять изменять склеивать) слоги в таймлайне. даблклик активирует редактор навешивает на span contenteditable.
 //или инструменты клей и ножницы в тулбаре с соответствующими кликами 
-//todo кнопка 321. вставит к месту указателя обратный отсчёт в случае если место указателя имеет валидное время
 
+//todo кнопка 321. 
+//вставит перед строкой на которую стоит указатель обратный отсчёт
+// в случае если место указателя имеет валидное время и слева есть место до трёх секунд
+
+//кнопка сбросить время. время выделенных слогов будет сброшено(установлено -1)
+
+//в div#cursor на таймлайне поместить слог, на котором сейчас стоит указатель
+//extra шкала секунд на таймлайне
 let bgWithPad;
 
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
@@ -511,8 +518,7 @@ editor.onpaste = async e => {
         range.deleteContents();
 
         if (!beforeStartElement) {
-            beforeStartElement = editor;
-            editor.append(...strs);
+            editor.prepend(...strs);
         } else {
             beforeStartElement.after(...strs);
         }
@@ -529,6 +535,31 @@ stringsToEditor();
 // todo в новом li почемуто формируется span, а в ссылке вложенная ссылка если перенести строку
 //если курсор стоит после ссылки текстовые ноды вставляются новые много. нужно установить курсор правильно 
 //todo кнопка клей и cut
+
+resetSyllableTimeButton.onclick = e => {
+    const sel = document.getSelection();
+    if (sel.type === 'None') return;
+    const range = sel.getRangeAt(0);
+
+    const getNearestA = (element, isEnd) => {
+        let result = null;
+        if (element.nodeType === Node.TEXT_NODE) result = element.parentElement;
+        else if (element.tagName === 'A') result = element;
+        else if (element.tagName === 'LI') result = element[(isEnd ? 'last' : 'first') + 'ElementChild'];
+        else if (element.tagName === 'UL') result = strings[range[(isEnd ? 'end' : 'start') + 'Offset']]?.[(isEnd ? 'last' : 'first') + 'ElementChild']
+        return result;
+    }
+    
+    let nearestStartA = getNearestA(range.startContainer, false); 
+    let nearestEndA = getNearestA(range.endContainer, true);
+    if (!nearestStartA || !nearestEndA) return;
+
+    const startIndex = Array.prototype.indexOf.call(syllables, nearestStartA);
+    const endIndex = Array.prototype.indexOf.call(syllables, nearestEndA);
+    
+    const selectedSyllables = Array.prototype.slice.call(syllables, startIndex, endIndex + 1);
+    selectedSyllables.forEach(a => a.dataset.time = '-1');
+}
 
 editor.onbeforeinput = e => { 
     const sel = document.getSelection();
@@ -569,11 +600,12 @@ editor.onbeforeinput = e => {
         range.setEnd(newA, 0);
     } 
     else if (e.data === '_') {
-        e.preventDefault();//установить правильное время для склейки
-        const textNode = sel.anchorNode;
-    } else if (e.data === ' ') {
-        //похожий алгоритм на тот что выше. только применяй convert к предыдущему слогу при autoSplit(на случай если пользователь написал слово)
-        //но если нажали пробел в textNode соответствующему одному согласному(частица) то ничего не делать
+        e.preventDefault();
+        const a = range.startContainer.parentElement;
+        const nextA = a?.nextElementSibling;
+        if (nextA?.tagName !== 'A') return;
+        a.textContent += nextA.textContent;
+        nextA.remove();
     }
     
     //e.preventDefault(); нельзя отменить тк срабатывает после изменения
@@ -599,8 +631,15 @@ editor.onbeforeinput = e => {
 
 }
 
-editor.oninput = () => {
+editor.oninput = e => {
+    const sel = document.getSelection();
+    if (sel.type !== 'Caret') return;
+    const range = sel.getRangeAt(0);
 
+    if (e.data === ' ') {
+        //похожий алгоритм на тот что выше. только применяй convert к предыдущему слогу при autoSplit(на случай если пользователь написал слово)
+        //но если нажали пробел в textNode соответствующему одному согласному(частица) то ничего не делать
+    }
 }
 
 const recalcMetrics = () => {
@@ -630,6 +669,8 @@ const parseJsonWords = strings => {
             if (isFinite(time)) a.dataset.time = time;
             li.append(a);
         });
+        if (li.children.length === 1)
+            li.firstElementChild.append(document.createElement('br'));
         editor.append(li);
     });
 }
