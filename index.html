@@ -190,9 +190,14 @@
             }
             .toolbar {
                 text-align: center;
+                #resetSyllableTimeButton {
+                    /* text-decoration: line-through; */
+                    background: brown;
+                }
             }
             #editor {
                 min-width: 50%;
+                list-style-type: circle; /*decimal*/
                 > li {
                     > a {
                         background-color: rgba(44, 155, 136, 0.7);
@@ -209,6 +214,9 @@
                     }
                     > a[data-time="-1"], > a:not([data-time]) {
                         background-color: brown; 
+                    }
+                    > a:has(br)::before {
+                        content: "\00a0\00a0"
                     }
                 }
                 > li.active {
@@ -311,8 +319,8 @@
             <button id="splitButton">Разбить на слоги</button>
             <input type="checkbox" id="autoSplit" checked>
             <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
-            <button title="Сбросить время выделенных слогов" id="resetSyllableTimeButton">C</button>
-            <!-- Подозреваю, что для EN придется асинхронно обращаться во вне или скачивать словарь с исключениями-->
+            <button title="Сбросить время выделенных слогов" id="resetSyllableTimeButton">🕒</button>
+            <!-- ведро заливки 🖌 x ⌫ ⎚ ⏲ 🕛 🕕 🕒 ⧖ ⌀ ␡ del res C    Подозреваю, что для EN придется асинхронно обращаться во вне или скачивать словарь с исключениями-->
         </div>
         <div class="content"> 
             <!-- Вешай на каждый a data-id и следи за добаслением их через mutationObserver -->
