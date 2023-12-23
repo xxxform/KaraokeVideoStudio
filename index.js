@@ -126,6 +126,12 @@ canvasContext.fillStyle = "yellow";
 
 //в div#cursor на таймлайне поместить слог, на котором сейчас стоит указатель
 //extra шкала секунд на таймлайне
+
+//todo grey вместо brown для слогов без time
+//скрывать подложку при рендере если текущая и следующая строки пустые, потом возвращать
+//todo показать следующую строку когда начался первый слог новой строки. 
+//Это избавит от незакрашенного последнего слога строки
+
 let bgWithPad;
 
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
@@ -560,6 +566,46 @@ resetSyllableTimeButton.onclick = e => {
     const selectedSyllables = Array.prototype.slice.call(syllables, startIndex, endIndex + 1);
     selectedSyllables.forEach(a => a.dataset.time = '-1');
 }
+//todo баг. когда стираем, в конце остается красный квадрант
+//todo! сбивается курсор если есть два слога подряд с одинаковым временем
+countDownButton.onclick = () => {
+    const sel = document.getSelection();
+    if (sel.type === 'None') return;
+    const range = sel.getRangeAt(0);
+
+    const a = range.startContainer?.parentElement?.parentElement?.firstElementChild;
+    const aTime = +a.dataset.time;
+    if (!(aTime + 1)) return //время не установлено
+    //также вставить пустые строки после последних строк перед проигрышем. посмотреть как в других караоке
+    let currentIndex = Array.prototype.indexOf.call(syllables, a);
+    let nearestTime = 0;
+    while (currentIndex--) {
+        const time = +syllables[currentIndex]?.dataset?.time;
+        if (!(time + 1)) continue;
+        else {
+            nearestTime = time;
+            break;
+        }
+    }
+    
+    if ((aTime - nearestTime) < 4) return;
+
+    const currentLi = a.parentElement;
+    const liIndex = Array.prototype.indexOf.call(strings, currentLi); //чёт нечёт
+    const template = [ //сначала самую последнюю
+        [['', aTime - 3]],
+        [['', aTime - 2.99]],
+        [['', aTime - 2.01]],
+        [['3', aTime - 2]],
+        [[currentLi.textContent, aTime - 1.5]],
+        [['2', aTime - 1]],
+        [[currentLi.textContent, aTime - .5]],
+        [['1', aTime - .01]],
+    ]
+    if (liIndex % 2) template.unshift([['', aTime - 3.02]],);
+
+    currentLi.before(...parseJsonToDomElements(template));
+}
 
 editor.onbeforeinput = e => { 
     const sel = document.getSelection();
@@ -659,8 +705,9 @@ backgroundColor.oninput = () => {
     drawBackground()
 }
 
-const parseJsonWords = strings => {
-    editor.innerHTML = '';
+const parseJsonToDomElements = strings => {
+    const lis = [];
+    
     strings.forEach(string => {
         const li = document.createElement('li');
         string.forEach(([word, time]) => {
@@ -669,10 +716,17 @@ const parseJsonWords = strings => {
             if (isFinite(time)) a.dataset.time = time;
             li.append(a);
         });
-        if (li.children.length === 1)
+        if (li.children.length === 1 && !li.firstElementChild.textContent)
             li.firstElementChild.append(document.createElement('br'));
-        editor.append(li);
+        lis.push(li);
     });
+
+    return lis;
+}
+
+const parseJsonWords = strings => {
+    editor.innerHTML = '';
+    editor.append(...parseJsonToDomElements(strings));
 }
 
 const parseDomJson = () => {
@@ -960,7 +1014,7 @@ const play = () => {
     let nextSyllable = currentString.children[syllableCursor];
     const time = +nextSyllable.dataset.time;
     let timeToNext = (time - audio.currentTime) * 1000;
-    if (isNaN(time) || timeToNext < 0) return;
+    if (isNaN(time) || timeToNext < 0) return; //todo! !(time + 1)
     
     timer = setTimeout(function show(syllable) {
         drawString(stringCursor, syllableCursor);
