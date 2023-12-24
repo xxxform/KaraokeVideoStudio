@@ -599,15 +599,15 @@ countDownButton.onclick = () => {
     const liIndex = Array.prototype.indexOf.call(strings, currentLi); //чёт нечёт
     const template = [ //сначала самую последнюю
         [['', aTime - 3]],
-        [['', aTime - 2.99]],
-        [['', aTime - 2.01]],
-        [['3', aTime - 2]],
-        [[currentLi.textContent, aTime - 1.5]],
-        [['2', aTime - 1]],
-        [[currentLi.textContent, aTime - .5]],
-        [['1', aTime - .01]],
-    ]
-    if (liIndex % 2) template.unshift([['', aTime - 3.02]],);
+        [['', aTime - 3]],
+        [['', aTime - 3]],
+        [['3', aTime - 3]],
+        [[currentLi.textContent, aTime - 2]],
+        [['2', aTime - 2]],
+        [[currentLi.textContent, aTime - 1]],
+        [['1', aTime - 1]],
+    ] //todo если на мобильном будет мерцание - от строк с числами отнять 0,5, поставить их время раньше следующего слога
+    if (liIndex % 2) template.unshift([['', aTime - 3]],);
 
     currentLi.before(...parseJsonToDomElements(template));
 }
@@ -1032,7 +1032,8 @@ const play = () => {
         const time = +nextSyllable.dataset.time;
         let timeToNext = (time - audio.currentTime) * 1000;
         if (!(time + 1)) return;
-        timer = setTimeout(show, timeToNext, nextSyllable);
+        if (timeToNext < 4) show(nextSyllable);
+        else timer = setTimeout(show, timeToNext, nextSyllable);
     }, timeToNext, nextSyllable);
 
     // мы сейчас на audio.current time
