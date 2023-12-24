@@ -16,12 +16,13 @@ let timelineTimer = -1;
 let spanSyllableMap = new WeakMap();
 let syllableSpanMap = new Map();
 let wordsYoffset = .75;
-let lineSpacing = 1.4;
-let fontSize = 8;
+let lineSpacing = 1.4; //todo extra
 let bgX = 0;
 let bgY = 0;
 var img = new Image;
 let songName = '';
+let rightSyllableColor = 'yellow';
+let leftSyllableColor = 'red';
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -37,7 +38,7 @@ canvasContext.fillStyle = "yellow";
 //todo размер шрифта можно указывать как vh или vw
 //todo после изменения размеров холста весь canvas сбрасывается и старый ctx больше недоступен. также заново нужно задавать стили шрифта и всего что в общем потоке здесь объявлено
 
-//проблемы с буковй ё. остаё не делится на два слога
+//проблемы с буковй ё. остаё не делится на два слога, своём
 //todo тест мобильной версии
 //фоновая картинка 
 //настройки скрыть за троеточием
@@ -137,6 +138,47 @@ canvasContext.fillStyle = "yellow";
 
 //todo fix следа буквы ё
 
+//todo возможность стирать первую строку
+//todo linespace колёсиком , zoom жест на телефоне
+
+//todo невозможно вручную печатать поля ввода toolbar из-за document.body.on...
+
+fontSizeInput.oninput = () => {
+    const val = +fontSizeInput.value;
+    if (val < 0 || !val) return;
+    canvasContext.font = `${Math.ceil(textCanvas.width / val)}px ${fontFamily.value}`;
+    drawPad();
+    recalcMetrics();
+    canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
+    showStringsByPosition();
+}
+
+fontFamily.onchange = () => {
+    canvasContext.font = `${Math.ceil(textCanvas.width / fontSizeInput.value)}px ${fontFamily.value}`;
+    drawPad();
+    recalcMetrics();
+    canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
+    showStringsByPosition();
+}
+
+rightSyllableColorInput.oninput = () => {
+    rightSyllableColor = rightSyllableColorInput.value;
+    canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
+    const isPlaceholder = !songName;
+    if (isPlaceholder) syllableCursor = 1;
+    showStringsByPosition();
+    if (isPlaceholder) syllableCursor = 0;
+}
+
+leftSyllableColorInput.oninput = () => {
+    leftSyllableColor = leftSyllableColorInput.value;
+    canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
+    const isPlaceholder = !songName;
+    if (isPlaceholder) syllableCursor = 1;
+    showStringsByPosition();
+    if (isPlaceholder) syllableCursor = 0;
+}
+
 let bgWithPad;
 
 const drawString = (stringIndex, toSyllableIndex = -1/*, параметр указывающий что незакрашенная строка уже нарисована  */) => {
@@ -151,7 +193,7 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
     // else canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height * wordsYoffset + halfOfLineSpacing); //первая строка
     canvasContext.clearRect(0, y, textCanvas.width, metrics.fontBoundingBoxDescent * 1.1); // * 1.1 нужен чтобы убрать следы от обводки stroke
 
-    canvasContext.fillStyle = "yellow";
+    canvasContext.fillStyle = rightSyllableColor;
     canvasContext.fillText(text, x, y);
 
     if (~toSyllableIndex) {
@@ -160,9 +202,9 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
             text += a.textContent;
             if (i === toSyllableIndex) return true;
         });
-        canvasContext.fillStyle = "red";
+        canvasContext.fillStyle = leftSyllableColor;
         canvasContext.fillText(text, x, y);
-        canvasContext.strokeStyle = 'red';
+        canvasContext.strokeStyle = leftSyllableColor;
         canvasContext.strokeText(text, x, y);
     } 
 
@@ -196,7 +238,7 @@ bgColor.oninput = bgOpacity.oninput = drawPad;
 bgEditToolkit.onclick = () => {
     if (started || bgEditToolkit.classList.contains('active')) return;
     bgEditToolkit.classList.add('active');
-    const placeholder = 'Нажмите два раза чтобы выбрать фоновое изображение или видео';
+    const placeholder = 'Нажмите два раза для выбора изображения/видео';
 
     if (!img.src) 
         bgEditToolkit.firstElementChild.textContent = placeholder;
@@ -244,6 +286,18 @@ bgEditToolkit.onclick = () => {
     }
 }
 
+wordEditor.onclick = e => {
+    if (!(e.target.closest('#editor') || e.target.closest('.toolbar'))) {
+        showTimeline(audio.currentTime, timelineDuration);
+        setCursorPosition();
+        showStringsByPosition();
+        wordEditor.style.display = '';
+        if (strings[stringCursor])
+            strings[stringCursor].classList.remove('active');
+        //todo отрисовать текущие строки drawString. указатель смещается если было перемотано(может указывать на несуществующие элементы)
+    };
+}
+
 textEditToolkit.onclick = () => {
     if (started || textEditToolkit.classList.contains('active')) return;
     textEditToolkit.classList.add('active');
@@ -289,14 +343,6 @@ textEditToolkit.onclick = () => {
         removeHandlers();
         textEditToolkit.classList.remove('active');
     }
-}
-
-exitEditorButton.onclick = () => {
-    showTimeline(audio.currentTime, timelineDuration);
-    wordEditor.style.display = '';
-    if (strings[stringCursor])
-        strings[stringCursor].classList.remove('active');
-    //todo отрисовать текущие строки drawString. указатель смещается если было перемотано(может указывать на несуществующие элементы)
 }
 
 const updateLocalStorage = () => {
