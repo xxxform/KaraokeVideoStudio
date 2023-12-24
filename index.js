@@ -129,8 +129,13 @@ canvasContext.fillStyle = "yellow";
 
 //todo grey вместо brown для слогов без time
 //скрывать подложку при рендере если текущая и следующая строки пустые, потом возвращать
-//todo показать следующую строку когда начался первый слог новой строки. 
-//Это избавит от незакрашенного последнего слога строки
+
+//todo мини input редактор времени слога под курсором в editor 
+
+//todo на screenToolpicker добавить если загружено видео input смещение времени видео от 0.
+//если > 0, если < 0 перемотка вперед и start, если > 0, несколько секунд черного экрана и плей
+
+//todo fix следа буквы ё
 
 let bgWithPad;
 
@@ -989,6 +994,9 @@ const runCursor = () => {
 }
 
 const shiftWordCursors = () => {
+    if (syllableCursor === 0 && strings[stringCursor + 1]) { //отображаем новую строку вместо той что закончилась
+        drawString(stringCursor + 1);
+    }
     let currentString = strings[stringCursor];
     let nextSyllable = currentString.children[syllableCursor + 1];
     if (nextSyllable) syllableCursor++; //следующий слог
@@ -997,12 +1005,6 @@ const shiftWordCursors = () => {
 
         if (strings[stringCursor + 1]) {//виртуальная следующая строка существует в strings
             ++stringCursor;
-
-            //отображаем новую строку вместо той что закончилась
-            let nextString = strings[stringCursor + 1]; 
-            if (nextString) {
-                drawString(stringCursor + 1);
-            }
         } else { //конец песни
             stringCursor = -1;
         }
@@ -1014,7 +1016,7 @@ const play = () => {
     let nextSyllable = currentString.children[syllableCursor];
     const time = +nextSyllable.dataset.time;
     let timeToNext = (time - audio.currentTime) * 1000;
-    if (isNaN(time) || timeToNext < 0) return; //todo! !(time + 1)
+    if (!(time + 1)) return;
     
     timer = setTimeout(function show(syllable) {
         drawString(stringCursor, syllableCursor);
@@ -1029,7 +1031,7 @@ const play = () => {
         nextSyllable = currentString.children[syllableCursor];
         const time = +nextSyllable.dataset.time;
         let timeToNext = (time - audio.currentTime) * 1000;
-        if (isNaN(time) || timeToNext < 0) return;
+        if (!(time + 1)) return;
         timer = setTimeout(show, timeToNext, nextSyllable);
     }, timeToNext, nextSyllable);
 
@@ -1042,17 +1044,18 @@ const clickHandler = () => { // как из js изменить css класс �
     // когда мы делаем клик, нужно вычислять процент курсора таймлайна
     // и искать первый span что на пути изменить его процент и время. 
     // если span'а нет - добаить согласно слогу на позицию % курсора
-
+    const clickTime = audio.currentTime;
     if (!~stringCursor) return;
     let currentString = strings[stringCursor];
     let syllable = currentString.children[syllableCursor];
-    syllable.dataset.time = audio.currentTime;
-    //syllable.element.classList.add('color');
+    const prevSyllableTime = +syllables[Array.prototype.indexOf.call(syllables, syllable) - 1]?.dataset?.time;
+    if ((prevSyllableTime + 1) && prevSyllableTime > clickTime) return;
+    syllable.dataset.time = clickTime;
     drawString(stringCursor, syllableCursor);
 
     shiftWordCursors();
 
-    const currentPercent = (audio.currentTime - timelinePosition) / (timelineDuration / 100) + '%';
+    const currentPercent = (clickTime - timelinePosition) / (timelineDuration / 100) + '%';
     const span = syllableSpanMap.get(syllable);
     if (span?.style) { //секунд от начала timelinePosition 
         span.style.left = currentPercent;
