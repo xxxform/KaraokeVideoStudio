@@ -1,5 +1,6 @@
 let started = false;
 let recording = false;
+let hiddenPad = false;
 let placeholderStrings = [
     [['Вве', -1], ['ди', -1], ['те ', -1], ['текст', -1]],
     [['En', -1], ['ter ', -1], ['the ', -1], ['text', -1]]
@@ -129,7 +130,6 @@ canvasContext.fillStyle = "yellow";
 //extra шкала секунд на таймлайне
 
 //todo grey вместо brown для слогов без time
-//скрывать подложку при рендере если текущая и следующая строки пустые, потом возвращать
 
 //todo мини input редактор времени слога под курсором в editor 
 
@@ -197,18 +197,34 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
     canvasContext.fillText(text, x, y);
 
     if (~toSyllableIndex) {
-        text = ''; 
+        let filledText = ''; 
         Array.prototype.some.call(string.children, (a, i) => { //todo в вызывающей функции учесть br. они могут быть в конце
-            text += a.textContent;
+            filledText += a.textContent;
             if (i === toSyllableIndex) return true;
         });
         canvasContext.fillStyle = leftSyllableColor;
-        canvasContext.fillText(text, x, y);
+        canvasContext.fillText(filledText, x, y);
         canvasContext.strokeStyle = leftSyllableColor;
-        canvasContext.strokeText(text, x, y);
+        canvasContext.strokeText(filledText, x, y);
     } 
 
     if (recording) {
+        //появился текст - показать подложку
+        if (hiddenPad && text) {
+            hiddenPad = false;
+            renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
+            renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
+            renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+            bgWithPad = renderCanvasContext.getImageData(0, 0, renderCanvas.width, renderCanvas.height);
+        } else
+        //две пустые строки при рендере - убрать подложку
+        if (toSyllableIndex === 0 && !hiddenPad && !text && !strings[stringIndex + 1]?.textContent) {
+            hiddenPad = true;
+            renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
+            renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+            bgWithPad = renderCanvasContext.getImageData(0, 0, renderCanvas.width, renderCanvas.height);
+        }
+        
         renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
         renderCanvasContext.putImageData(bgWithPad, 0, 0);
         renderCanvasContext.drawImage(textCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
@@ -849,7 +865,8 @@ render.onclick = async () => {
 
     renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
     renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
-    renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
+    if (!strings[0]?.textContent && !strings[1]?.textContent) hiddenPad = true;
+    else renderCanvasContext.drawImage(padCanvas, 0, 0, renderCanvas.width, renderCanvas.height);
     bgWithPad = renderCanvasContext.getImageData(0, 0, renderCanvas.width, renderCanvas.height);
 
     recording = true;
@@ -1043,7 +1060,7 @@ const shiftWordCursors = () => {
     if (syllableCursor === 0 && strings[stringCursor + 1]) { //отображаем новую строку вместо той что закончилась
         drawString(stringCursor + 1);
     }
-    let currentString = strings[stringCursor];
+    let currentString = strings[stringCursor]; //todo здесь отобразить слог на очереди
     let nextSyllable = currentString.children[syllableCursor + 1];
     if (nextSyllable) syllableCursor++; //следующий слог
     else { //строка закончилась, удалить её и заменить на следующую. перевести курсор на second/first
