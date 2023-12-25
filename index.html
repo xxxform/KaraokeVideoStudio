@@ -98,6 +98,13 @@
                 max-height: 100%;
                 max-width: 100%;
             }
+
+            @media (orientation: portrait) {
+                #toolbarElem { position: fixed }
+            }
+            @media (orientation: landscape) {
+                #toolbarElem { position: inherit }
+            }
         }
         .bottom {
            flex: 0 0 auto;
@@ -245,9 +252,8 @@
                     text-decoration-style: solid;
                 }
 
-                @media (orientation: portrait) {
-                    min-width: 75%;
-                }
+                @media (orientation: landscape) {width: 50%;}
+                @media (orientation: portrait) {width: 75%;}
 
                 /* > li > a:first-child::before {
                     content: '))))';

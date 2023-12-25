@@ -141,7 +141,7 @@ canvasContext.fillStyle = "yellow";
 //todo возможность стирать первую строку
 //todo linespace колёсиком , zoom жест на телефоне
 
-//todo невозможно вручную печатать поля ввода toolbar из-за document.body.on...
+//todo onplay скрывать toolbars. bgEditToolkit.classList.remove('active'); (мб не мешает)
 
 fontSizeInput.oninput = () => {
     const val = +fontSizeInput.value;
@@ -1325,16 +1325,17 @@ words.onmousedown = words.ontouchstart = e => {
 
     words.onmousemove = words.ontouchmove = multipleSelectionMode ? multipleMoveHandler : moveHandler;
 
+    main.onclick = () => {
+        document.getSelection().removeAllRanges();
+        multipleSelectionMode = false;
+        main.onclick = null;
+    };
+
     // words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
 
     //если мы держим и не двигаемся 1.5 секунды - активируем режим мультивыделения
     //как на мобилке так и на десктопе
 }
-
-main.addEventListener('click', () => {
-    document.getSelection().removeAllRanges();
-    multipleSelectionMode = false;
-});
 
 //тикает при воспроизведении. 
 //если пользователь мотает:
