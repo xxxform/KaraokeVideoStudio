@@ -141,6 +141,8 @@ canvasContext.fillStyle = "yellow";
 //todo возможность стирать первую строку
 //todo linespace колёсиком , zoom жест на телефоне
 
+//onbefore backspace/del caret prevent  если остался один симв удалить его - вставить br
+
 //todo onplay скрывать toolbars. bgEditToolkit.classList.remove('active'); (мб не мешает)
 
 fontSizeInput.oninput = () => {
@@ -302,7 +304,7 @@ bgEditToolkit.onclick = () => {
     }
 }
 
-wordEditor.onclick = e => {
+wordEditor.onmousedown = wordEditor.ontouchstart = e => {
     if (!(e.target.closest('#editor') || e.target.closest('.toolbar'))) {
         showTimeline(audio.currentTime, timelineDuration);
         setCursorPosition();
@@ -384,7 +386,7 @@ const setPrevSyllableTime = a => {
         return;
     }
 
-    const prev = syllables[index];
+    const prev = syllables[index - 1]; //todo test
     if (+prev.dataset.time > -1) a.dataset.time = prev.dataset.time;
 }
 
@@ -439,10 +441,9 @@ const observer = new MutationObserver((list) => {
         if (additon.nodeType === Node.TEXT_NODE && additon?.parentElement?.tagName !== 'A') {
             let a = document.createElement('a');
             a.textContent = additon.textContent;
-            setPrevSyllableTime(a);
 
             if (additon.parentElement?.tagName === 'SPAN') 
-                additon.parentElement.replaceWith(additon); //todo работает ли этот код
+                additon.parentElement.replaceWith(additon);
             
             if (additon.parentElement?.tagName !== 'LI') { 
                 let li = document.createElement('li');
@@ -451,6 +452,7 @@ const observer = new MutationObserver((list) => {
             } else {
                 additon.replaceWith(a);
             }
+            setPrevSyllableTime(a);
             
             //поставить курсор правильно, в конец элемента a
             if (window.getSelection && document.createRange) {
@@ -531,18 +533,21 @@ editor.onpaste = async e => {
 
         if (isLast && isAllSelect) range.setEndAfter(li);
     }
+    const splitted = text.split('\n');
     //
-        let beforeStartATime = -1; //todo test
+    let beforeStartATime = -1; 
+    if (splitted.length < 3) { //Если вставили меньше трёх строк - задать время последнего слога. Иначе - на ритм
         if (range.startContainer.nodeType === Node.TEXT_NODE) {
             beforeStartATime = start.parentElement.dataset.time;
         } else {
             const li = strings[range.startOffset - 1];
-            if (li?.lastElementChild) {
+            if (li?.lastElementChild?.dataset?.time) {
                 beforeStartATime = li.lastElementChild.dataset.time;
             }
         }
+    }
     //
-    const strs = text.split('\n').map(str => {
+    const strs = splitted.map(str => {
         const li = document.createElement('li');
         
         str = str.replaceAll(/( |^)([бвгджзйклмнпрстфхцчшщ]{1})( )/gi, "$1$2_");
@@ -675,7 +680,7 @@ countDownButton.onclick = () => {
 }
 
 editor.onbeforeinput = e => { 
-    const sel = document.getSelection();
+    const sel = document.getSelection(); //e.inputType deleteContentBackward deleteContentForward
     if (sel.type !== 'Caret') return;
     const range = sel.getRangeAt(0);
     
@@ -749,9 +754,40 @@ editor.oninput = e => {
     if (sel.type !== 'Caret') return;
     const range = sel.getRangeAt(0);
 
+    const handler = checker => {
+        const textNode = range.startContainer;
+        const rawText = textNode.textContent;
+        const a = textNode.parentElement;
+        const slashPosition = range.startOffset - 1;
+        const left = rawText.slice(0, slashPosition); 
+        if (checker && checker(left)) return;
+        const right = rawText.slice(slashPosition);
+        const time = a.dataset.time;
+        textNode.textContent = right;
+
+        const addSyllable = syllable => {
+            const newA = document.createElement('a');
+            newA.textContent = syllable;
+            if (isFinite(time)) newA.dataset.time = time;
+            a.before(newA);
+        };
+
+        if (autoSplit.checked) {
+            convert(left).split('/').forEach(addSyllable);
+        } else {
+            addSyllable(left);
+        }
+
+        range.setStart(textNode, 1);
+        range.setEnd(textNode, 1);
+    }
+
     if (e.data === ' ') {
-        //похожий алгоритм на тот что выше. только применяй convert к предыдущему слогу при autoSplit(на случай если пользователь написал слово)
-        //но если нажали пробел в textNode соответствующему одному согласному(частица) то ничего не делать
+        handler(left => {  //если это частица - ничего не делать
+            return autoSplit.checked && left.trim().length === 1 && /[бвгджзйклмнпрстфхцчшщ]/.test(left);
+        });
+    } else if (e.data === '-') {
+        handler();
     }
 }
 
