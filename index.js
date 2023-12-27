@@ -147,6 +147,11 @@ canvasContext.fillStyle = "yellow";
 //todo onplay скрывать toolbars. bgEditToolkit.classList.remove('active'); (мб не мешает)
 //todo нельзя просто так взять выделить и написать слово вместо выделенного
 
+//инструкция
+/*
+вставлять текст на мобильном только удержанием и кнопкой вставить(такая кнопка не сработает)
+*/
+
 fontSizeInput.oninput = () => {
     const val = +fontSizeInput.value;
     if (val < 0 || !val) return;
@@ -909,10 +914,23 @@ const run = async () => {
 
 render.onclick = async () => {
     const suggestedName = songName + "(Караоке).webm";
-    const handle = await window.showSaveFilePicker({ suggestedName });
+    const chunks = [];
+    const handle = await (window.showSaveFilePicker ? window.showSaveFilePicker({ suggestedName }) : {
+        createWritable: () => ({
+            write: data => chunks.push(data),
+            close: () => {
+                if (!chunks.length) return;
+                const blob = new Blob(chunks, { type: 'video/webm'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = suggestedName;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        })
+    });
     const writable = await handle.createWritable();
-    //https://web.dev/patterns/files/save-a-file?hl=ru#js todo showSaveFilePicker есть только в chrome
-
     const stream = audio.captureStream();
     stream.addTrack(renderCanvas.captureStream().getVideoTracks()[0]);
 
@@ -928,12 +946,11 @@ render.onclick = async () => {
         }
     });
 
-    audio.addEventListener('pause', function stopRecord(){
+    audio.addEventListener('pause', () => {
         recording = false;
         recorder.stop();
         stream.getTracks().forEach(track => track.stop());
-        audio.removeEventListener('pause', stopRecord);
-    });
+    }, { once: true });
 
     renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
     renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
