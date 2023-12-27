@@ -21,7 +21,7 @@ function convert(s) {
             e = e + ' ';
             return
         }
-        var b = e.search(/[аеёиоуыэюя]/);
+        var b = e.search(/[аеёиоуыэюя]/i);
         if (b < 0) {
             return
         }
@@ -45,7 +45,7 @@ function convert(s) {
             d = g[j].substr(i, 1);
             e += d;
             var k = g[j].substr(i + 1, 1);
-            var l = k.search(/[а-я]/);
+            var l = k.search(/[а-я]|ё/i); //на о произошла сепарация
             if (l > -1) {
                 if ((i != 0) && (i != g[j].length - 1) && (brief.indexOf(d) != -1) && (isNotLastSep(g[j].substr(i + 1, g[j].length - i + 1)))) {
                     addSep(false);

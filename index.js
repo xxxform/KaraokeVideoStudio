@@ -145,7 +145,6 @@ canvasContext.fillStyle = "yellow";
 
 //todo onplay скрывать toolbars. bgEditToolkit.classList.remove('active'); (мб не мешает)
 
-//todo баг. Слово Альфа не делится на слоги и Алфавит
 
 fontSizeInput.oninput = () => {
     const val = +fontSizeInput.value;
@@ -802,7 +801,7 @@ editor.oninput = e => {
 
     if (e.data === ' ') {
         handler(left => {  //если это частица - ничего не делать
-            return autoSplit.checked && left.trim().length === 1 && /[бвгджзйклмнпрстфхцчшщ]/.test(left);
+            return autoSplit.checked && left.trim().length === 1 && /[бвгджзйклмнпрстфхцчшщ]/i.test(left);
         });
     } else if (e.data === '-') {
         handler();
