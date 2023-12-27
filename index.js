@@ -145,6 +145,8 @@ canvasContext.fillStyle = "yellow";
 
 //todo onplay скрывать toolbars. bgEditToolkit.classList.remove('active'); (мб не мешает)
 
+//todo баг. Слово Альфа не делится на слоги и Алфавит
+
 fontSizeInput.oninput = () => {
     const val = +fontSizeInput.value;
     if (val < 0 || !val) return;
@@ -411,6 +413,7 @@ const observer = new MutationObserver((list) => {
     //следить, если был вставлен сырой textNode с parent'ом li - обернуть его в a
     //баг. выделить вручную две полные строки и вставить символ с клавиатуры будет обернут в span и всё сломает
     for (let additon of added) {
+        if (!additon.parentElement) continue;
         if (additon.tagName === 'A' && additon.firstElementChild && (additon.nextElementSibling || additon.previousElementSibling)) {
             console.log('a with br removed');
             additon.remove();
@@ -444,38 +447,36 @@ const observer = new MutationObserver((list) => {
 
             if (additon.parentElement?.tagName === 'SPAN') 
                 additon.parentElement.replaceWith(additon);
-            
-            if (additon.parentElement?.tagName !== 'LI') { 
+
+            if (!additon.parentElement.closest('li')) { 
                 let li = document.createElement('li');
-                li.append(a);
                 additon.replaceWith(li);
-            } else {
+                li.append(a);
+            } else if (!additon.parentElement.closest('a')) {
                 additon.replaceWith(a);
             }
             setPrevSyllableTime(a);
             
             //поставить курсор правильно, в конец элемента a
-            if (window.getSelection && document.createRange) {
-                // IE 9 and non-IE
+            if (window.getSelection && document.createRange && a.parentElement) {
                 var sel = window.getSelection();
                 var range = document.createRange();
                 range.setStart(a.firstChild, a.textContent.length); //setStart(p, 0) установит начало диапазона на нулевом дочернем элементе тега p(напр текстовый узел)
                 range.collapse(true);
                 sel.removeAllRanges(); //чтобы не возникло multirange
                 sel.addRange(range); //выделить этот диапазон на странице
-            } else if (document.body.createTextRange) {
-                // IE < 9
-                var textRange = document.body.createTextRange();
-                textRange.moveToElementText(a);
-                textRange.collapse(true);
-                textRange.select();
             }
-
+        } 
+        else if (additon.nodeType === Node.TEXT_NODE && (additon.previousSibling || additon.nextSibling)) {
+            console.log('sibling textNode removed');
+            if (additon.previousSibling) {
+                additon.textContent = additon.previousSibling.textContent + additon.textContent;
+                additon.previousSibling.remove();
+            } else {
+                additon.textContent += additon.nextSibling.textContent;
+                additon.nextSibling.remove();
+            }
         }
-    }
-
-    for (let removation of removed) {
-        
     }
 
     records = [added, removed];
@@ -725,7 +726,21 @@ editor.onbeforeinput = e => {
         a.textContent += nextA.textContent;
         nextA.remove();
     }
-    
+    else if (e.inputType = "insertParagraph" && range.startContainer.nodeType === Node.TEXT_NODE && range.startContainer.parentElement.tagName === 'A' && autoSplit.checked) {
+        const a = range.startContainer.parentElement;
+        const time = a.dataset.time;
+        
+        const addSyllable = syllable => {
+            if (!syllable) return;
+            const newA = document.createElement('a');
+            newA.textContent = syllable;
+            if (isFinite(time)) newA.dataset.time = time;
+            a.before(newA);
+        };
+
+        convert(a.textContent).split('/').forEach(addSyllable);
+        a.remove();
+    }
     //e.preventDefault(); нельзя отменить тк срабатывает после изменения
     //onbeforeinput отменить можно
 
@@ -756,6 +771,8 @@ editor.oninput = e => {
 
     const handler = checker => {
         const textNode = range.startContainer;
+        if (textNode.parentElement.tagName === 'SPAN') 
+            textNode.parentElement.replaceWith(textNode);
         const rawText = textNode.textContent;
         const a = textNode.parentElement;
         const slashPosition = range.startOffset - 1;
@@ -766,6 +783,7 @@ editor.oninput = e => {
         textNode.textContent = right;
 
         const addSyllable = syllable => {
+            if (!syllable) return;
             const newA = document.createElement('a');
             newA.textContent = syllable;
             if (isFinite(time)) newA.dataset.time = time;
