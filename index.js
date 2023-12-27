@@ -155,9 +155,8 @@ canvasContext.fillStyle = "yellow";
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
-//todo при рендеринге заблокировать клики
-//todo задать правила переноса строки если строка не помещается
-//todo скрытые настройки. #
+
+//todo задать правила переноса строки если строка не помещается. размер шрифта от vw
 
 toolbarElem.ondblclick = () => {
     if (latencyInputLabel.hasAttribute('hidden')) {
@@ -1000,6 +999,7 @@ render.onclick = async () => {
 
     recording = true;
     audio.currentTime = 0;
+    document.body.click(); //убрать toolbar
     recorder.start();
     audio.play();
 };
@@ -1348,9 +1348,12 @@ minus.onclick = () => {
 audio.onplay = e => {
     setCursorPosition();
     showStringsByPosition();
-    if (!recording) runCursor();
+    if (!recording) {
+        runCursor();
+        main[isMobile ? 'ontouchstart' : 'onmousedown'] = clickHandler;
+    }
     play();
-    main[isMobile ? 'ontouchstart' : 'onmousedown'] = clickHandler;
+    
     started = true;
 }
 
