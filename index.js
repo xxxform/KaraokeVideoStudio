@@ -25,6 +25,7 @@ let songName = '';
 let rightSyllableColor = 'yellow';
 let leftSyllableColor = 'red';
 const isMobile = ('ontouchstart' in window);
+let latency = 0;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -149,11 +150,17 @@ canvasContext.fillStyle = "yellow";
 
 //инструкция
 /*
+компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
 //todo при рендеринге заблокировать клики
 //todo задать правила переноса строки если строка не помещается
+//todo скрытые настройки. #toolbarElem.ondblclick
 
+latencyInput.oninput = () => {
+    const newVal = +latencyInput.value;
+    if (newVal > -1) latency = newVal;
+}
 fontSizeInput.oninput = () => {
     const val = +fontSizeInput.value;
     if (val < 0 || !val) return;
@@ -1190,7 +1197,7 @@ const play = () => {
     let currentString = strings[stringCursor];
     let nextSyllable = currentString.children[syllableCursor];
     const time = +nextSyllable.dataset.time;
-    let timeToNext = (time - audio.currentTime) * 1000;
+    let timeToNext = (time - audio.currentTime) * 1000 - latency;
     if (!(time + 1)) return;
     
     timer = setTimeout(function show(syllable) {
@@ -1205,7 +1212,7 @@ const play = () => {
         currentString = strings[stringCursor];
         nextSyllable = currentString.children[syllableCursor];
         const time = +nextSyllable.dataset.time;
-        let timeToNext = (time - audio.currentTime) * 1000;
+        let timeToNext = (time - audio.currentTime) * 1000 - latency;
         if (!(time + 1)) return;
         if (timeToNext < 4) show(nextSyllable);
         else timer = setTimeout(show, timeToNext, nextSyllable);

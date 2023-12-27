@@ -70,6 +70,9 @@
                     #render {
                         color: red;
                     }
+                    #bgSize, #latencyInput {
+                        width: 3em;
+                    }
                 }
                 .text {
                     #fontFamily {
@@ -312,6 +315,7 @@
                     <input type="number" value="1920" id="videoSizeX">x<input type="number" value="1080" id="videoSizeY"><button id="render">⬤</button> <br>
                     <input type="color" id="backgroundColor" value="#000000">
                     <input type="number" value="100" id="bgSize">%
+                    <input type="number" value="0" id="latencyInput">
                     <input type="file" title="изображение/видео" id="bgfileInput" hidden accept="image/*, video/*"/>
                     
                     <div class="source" hidden>
