@@ -24,6 +24,7 @@ var img = new Image;
 let songName = '';
 let rightSyllableColor = 'yellow';
 let leftSyllableColor = 'red';
+const isMobile = ('ontouchstart' in window);
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -270,16 +271,16 @@ bgEditToolkit.onclick = () => {
         toolbarElem.style.display = '';
         document.body.removeEventListener('mouseup', removeHandlers);
         document.body.removeEventListener('touchend', removeHandlers);
-        bgEditToolkit.onmousemove = bgEditToolkit.ontouchmove = null;
+        bgEditToolkit[isMobile ? 'ontouchmove' : 'onmousemove'] = null;
     }
 
-    bgEditToolkit.onmousedown = bgEditToolkit.ontouchstart = e => {
+    bgEditToolkit[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         let tapY = (e.y || e.targetTouches[0].clientY);
         let tapX = (e.x || e.targetTouches[0].clientX);
   
         toolbarElem.style.display = 'none';
 
-        bgEditToolkit.onmousemove = bgEditToolkit.ontouchmove = moveEvent => {
+        bgEditToolkit[isMobile ? 'ontouchmove' : 'onmousemove'] = moveEvent => {
             const x = (moveEvent.x || moveEvent.targetTouches[0].clientX);
             const y = (moveEvent.y || moveEvent.targetTouches[0].clientY);
             
@@ -305,7 +306,7 @@ bgEditToolkit.onclick = () => {
     }
 }
 
-wordEditor.onmousedown = wordEditor.ontouchstart = e => {
+wordEditor[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
     if (!(e.target.closest('#editor') || e.target.closest('.toolbar'))) {
         showTimeline(audio.currentTime, timelineDuration);
         setCursorPosition();
@@ -335,13 +336,13 @@ textEditToolkit.onclick = () => {
 
     const wrapper = textEditToolkit.parentElement.getBoundingClientRect();
 
-    textEditToolkit.onmousedown = textEditToolkit.ontouchstart = e => {
+    textEditToolkit[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         const tapY = (e.y || e.targetTouches[0].clientY) - wrapper.y;
         const spanY = e.target.getBoundingClientRect().y - wrapper.y
         const pxToSpan = tapY - spanY;
         //перетаскивая вниз на мобильном появляется шторка
         toolbarElem.style.display = 'none';
-        textEditToolkit.onmousemove = textEditToolkit.ontouchmove = moveEvent => {
+        textEditToolkit[isMobile ? 'ontouchmove' : 'onmousemove'] = moveEvent => {
             const y = (moveEvent.y || (moveEvent.targetTouches[0].clientY)) - wrapper.y - pxToSpan;
             const newPercent = y / (wrapper.height / 100);
             textEditToolkit.style.top = newPercent + '%';
@@ -354,7 +355,7 @@ textEditToolkit.onclick = () => {
         document.body.onmouseup = document.body.ontouchend = removeHandlers;
     }
     
-    document.body.onmousedown = document.body.ontouchstart = e => {
+    document.body[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         if (e.target.closest('#textEditToolkit') || e.target.closest('#toolbarElem')) return;
         textEditToolkit.ondblclick = textEditToolkit.onmousedown = textEditToolkit.ontouchstart = null;
         if (bgEditToolkit.firstElementChild.textContent === placeholder) 
@@ -428,6 +429,10 @@ const observer = new MutationObserver((list) => {
             setPrevSyllableTime(additon);
             //while(--index >= 0) {}
         } else
+        if (additon.tagName === 'A' && additon?.parentElement?.tagName !== 'LI') {
+            console.log('a removed')
+            additon.remove();
+        }
         //у firefox проблема. br может быть вне a и в не пустой строке. здесь fix
         if (additon?.tagName === 'BR' && additon?.parentElement?.tagName !== 'A') {  //todo тест выяснить отсутствие кейсов возникания пустых a
             console.log('br wrapped in a');
@@ -687,7 +692,7 @@ editor.onbeforeinput = e => {
     if (sel.type !== 'Caret') return;
     const range = sel.getRangeAt(0);
     
-    if (e.data === '/') {
+    if (e.data?.trim && e.data.at(-1) === '/') {
         e.preventDefault();
         const textNode = sel.anchorNode;
         const rawText = textNode.textContent;
@@ -720,7 +725,7 @@ editor.onbeforeinput = e => {
         range.setStart(newA, 0);
         range.setEnd(newA, 0);
     } 
-    else if (e.data === '_') {
+    else if (e.data?.trim && e.data.at(-1) === '_') {
         e.preventDefault();
         const a = range.startContainer.parentElement;
         const nextA = a?.nextElementSibling;
@@ -787,11 +792,11 @@ editor.oninput = e => {
         range.setEnd(textNode, 1);
     }
 
-    if (e.data === ' ') {
+    if (e.data?.trim && e.data.at(-1) === ' ') {
         handler(left => {  //если это частица - ничего не делать
             return autoSplit.checked && left.trim().length === 1 && /[бвгджзйклмнпрстфхцчшщ]/i.test(left);
         });
-    } else if (e.data === '-') {
+    } else if (e.data?.trim && e.data.at(-1) === '-') {
         handler();
     } 
     else if (e.inputType = "insertParagraph" && range.startContainer.nodeType === Node.TEXT_NODE && range.startContainer.parentElement.tagName === 'A' && autoSplit.checked) {
@@ -1288,7 +1293,7 @@ audio.onplay = e => {
     showStringsByPosition();
     if (!recording) runCursor();
     play();
-    main.onmousedown = main.ontouchstart = clickHandler;
+    main[isMobile ? 'ontouchstart' : 'onmousedown'] = clickHandler;
     started = true;
 }
 
@@ -1333,7 +1338,7 @@ document.onselectionchange = e => {
 
 let multipleSelectionMode = false;
 
-words.onmousedown = words.ontouchstart = e => {
+words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
     //как только e.targetTouches.length == 2 переходим в multipleSelectionMode
     words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
 
@@ -1396,13 +1401,13 @@ words.onmousedown = words.ontouchstart = e => {
         });
     }
 
-    words.onmouseup = words.ontouchend =  () => {
+    words[isMobile ? 'ontouchend' : 'onmouseup'] = () => {
         if (multipleSelectionMode) document.getSelection().removeAllRanges();
         words.onmousemove = words.ontouchmove = null;
         multipleSelectionMode = false;
     };
 
-    words.onmousemove = words.ontouchmove = multipleSelectionMode ? multipleMoveHandler : moveHandler;
+    words[isMobile ? 'ontouchmove' : 'onmousemove'] = multipleSelectionMode ? multipleMoveHandler : moveHandler;
 
     main.onclick = () => {
         document.getSelection().removeAllRanges();
