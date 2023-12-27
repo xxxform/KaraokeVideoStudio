@@ -418,7 +418,7 @@ const observer = new MutationObserver((list) => {
             console.log('a with br removed');
             additon.remove();
         }
-        if (additon.tagName === 'A' && !additon.nextElementSibling && !additon.previousElementSibling) {
+        if (additon.tagName === 'A' && !additon.nextElementSibling && !additon.previousElementSibling && !additon?.dataset?.time) {
             //проблема со сбивающимся временем слогов при редактировании enter и разбиении
             //todo! сделать это onpaste enter
             //todo! найти ближайший слог слева, у которого есть time. если нет - установить 0. если есть - его значение
