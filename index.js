@@ -25,7 +25,9 @@ let songName = '';
 let rightSyllableColor = 'yellow';
 let leftSyllableColor = 'red';
 const isMobile = ('ontouchstart' in window);
-let latency = 0;
+let latency = isMobile ? 300 : 0;
+if (isMobile) latencyInput.value = latency;
+lineSpacingInput.value = lineSpacing;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -155,12 +157,32 @@ canvasContext.fillStyle = "yellow";
 */
 //todo при рендеринге заблокировать клики
 //todo задать правила переноса строки если строка не помещается
-//todo скрытые настройки. #toolbarElem.ondblclick
+//todo скрытые настройки. #
+
+toolbarElem.ondblclick = () => {
+    if (latencyInputLabel.hasAttribute('hidden')) {
+        lineSpacingInputLabel.removeAttribute('hidden');
+        latencyInputLabel.removeAttribute('hidden');
+    } else {
+        lineSpacingInputLabel.setAttribute('hidden', '');
+        latencyInputLabel.setAttribute('hidden', '');
+    }
+}
 
 latencyInput.oninput = () => {
     const newVal = +latencyInput.value;
     if (newVal > -1) latency = newVal;
 }
+
+lineSpacingInput.oninput = () => {
+    const newVal = +lineSpacingInput.value;
+    if (newVal > -1) lineSpacing = newVal;
+    drawPad();
+    recalcMetrics();
+    canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
+    showStringsByPosition();
+}
+
 fontSizeInput.oninput = () => {
     const val = +fontSizeInput.value;
     if (val < 0 || !val) return;
