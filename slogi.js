@@ -1,10 +1,10 @@
 //slogi.su
-var vowel = new String('аеёиоуыэюя');
-var voiced = new String('бвгджзлмнрхцчшщ');
-var deaf = new String('кпстф');
-var brief = new String('й');
-var other = new String('ьъ');
-var cons = new String('бвгджзйклмнпрстфхцчшщ');
+var vowel = new String('аеёиоуыэюяАЕЁИОУЫЭЮЯ');
+var voiced = new String('бвгджзлмнрхцчшщБВГДЖЗЛМНРХЦЧШЩ');
+var deaf = new String('кпстфКПСТФ');
+var brief = new String('йЙ');
+var other = new String('ьъЬЪ');
+var cons = new String('бвгджзйклмнпрстфхцчшщБВГДЖЗЙКЛМНПРСТФХЦЧШЩ');
 function isNotLastSep(a) {
     var b = false;
     for (var i = 0; i < a.length; i++) {

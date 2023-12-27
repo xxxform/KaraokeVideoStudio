@@ -144,7 +144,7 @@ canvasContext.fillStyle = "yellow";
 //onbefore backspace/del caret prevent  если остался один симв удалить его - вставить br
 
 //todo onplay скрывать toolbars. bgEditToolkit.classList.remove('active'); (мб не мешает)
-
+//todo нельзя просто так взять выделить и написать слово вместо выделенного
 
 fontSizeInput.oninput = () => {
     const val = +fontSizeInput.value;
@@ -636,7 +636,10 @@ resetSyllableTimeButton.onclick = e => {
     const endIndex = Array.prototype.indexOf.call(syllables, nearestEndA);
     
     const selectedSyllables = Array.prototype.slice.call(syllables, startIndex, endIndex + 1);
-    selectedSyllables.forEach(a => a.dataset.time = '-1');
+    selectedSyllables.forEach(a => {
+        a.dataset.time = '-1';
+        syllableSpanMap.delete(a);
+    });
 }
 //todo баг. когда стираем, в конце остается красный квадрант
 //todo! сбивается курсор если есть два слога подряд с одинаковым временем
@@ -725,21 +728,6 @@ editor.onbeforeinput = e => {
         a.textContent += nextA.textContent;
         nextA.remove();
     }
-    else if (e.inputType = "insertParagraph" && range.startContainer.nodeType === Node.TEXT_NODE && range.startContainer.parentElement.tagName === 'A' && autoSplit.checked) {
-        const a = range.startContainer.parentElement;
-        const time = a.dataset.time;
-        
-        const addSyllable = syllable => {
-            if (!syllable) return;
-            const newA = document.createElement('a');
-            newA.textContent = syllable;
-            if (isFinite(time)) newA.dataset.time = time;
-            a.before(newA);
-        };
-
-        convert(a.textContent).split('/').forEach(addSyllable);
-        a.remove();
-    }
     //e.preventDefault(); нельзя отменить тк срабатывает после изменения
     //onbeforeinput отменить можно
 
@@ -805,6 +793,32 @@ editor.oninput = e => {
         });
     } else if (e.data === '-') {
         handler();
+    } 
+    else if (e.inputType = "insertParagraph" && range.startContainer.nodeType === Node.TEXT_NODE && range.startContainer.parentElement.tagName === 'A' && autoSplit.checked) {
+        const a = range.startContainer.parentElement;
+        const time = a.dataset.time;
+        const cursorPostition = range.startOffset;
+        let pasted = '';
+        let flag = true;
+        
+        const addSyllable = syllable => {
+            if (!syllable) return;
+            const newA = document.createElement('a');
+            newA.textContent = syllable;
+            if (isFinite(time)) newA.dataset.time = time;
+            a.before(newA);
+
+            const newPasted = pasted + syllable;
+            if (flag && newPasted[cursorPostition]) {
+                range.setStart(newA.firstChild, cursorPostition - pasted.length);
+                range.setEnd(newA.firstChild, cursorPostition - pasted.length);
+                flag = false;
+            } else 
+                pasted = newPasted;
+        };
+
+        convert(a.textContent).split('/').forEach(addSyllable);
+        a.remove();
     }
 }
 
@@ -1035,6 +1049,12 @@ const setCursorPosition = () => { //устанавливает позицию к
 
     syllableCursor = ~syllableIndex ? syllableIndex : 0;
     stringCursor = ~stringIndex ? stringIndex : 0;
+
+    if (!recording) {
+        const currSyllable = strings[stringCursor]?.children?.[syllableCursor];
+        if (currSyllable && !(+currSyllable?.dataset?.time + 1)) cursor.textContent = currSyllable.textContent;
+        else cursor.textContent = '';
+    }
 }
 
 const showStringsByPosition = () => {
@@ -1124,6 +1144,12 @@ const shiftWordCursors = () => {
         } else { //конец песни
             stringCursor = -1;
         }
+    }
+
+    if (!recording) {
+        const currSyllable = strings[stringCursor]?.children?.[syllableCursor];
+        if (currSyllable && !(+currSyllable?.dataset?.time + 1)) cursor.textContent = currSyllable.textContent
+        else cursor.textContent = '';
     }
 }
 
