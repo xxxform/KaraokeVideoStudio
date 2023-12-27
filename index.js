@@ -149,8 +149,10 @@ canvasContext.fillStyle = "yellow";
 
 //инструкция
 /*
-вставлять текст на мобильном только удержанием и кнопкой вставить(такая кнопка не сработает)
+первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
+//todo при рендеринге заблокировать клики
+//todo задать правила переноса строки если строка не помещается
 
 fontSizeInput.oninput = () => {
     const val = +fontSizeInput.value;
@@ -506,11 +508,8 @@ editor.oncut = e => {
      */
 }
 
-editor.onpaste = async e => {
-    e.preventDefault();
-    let text = (e.originalEvent || e).clipboardData.getData('text/plain');
+const parseAndPastePlainText = text => {
     text = text.replaceAll(/\r\n/g, '\n');
-
     const sel = window.getSelection();
     const range = sel.getRangeAt(0);
 
@@ -556,7 +555,7 @@ editor.onpaste = async e => {
             }
         }
     }
-    //
+    // 
     const strs = splitted.map(str => {
         const li = document.createElement('li');
         
@@ -611,6 +610,12 @@ editor.onpaste = async e => {
             beforeStartElement.after(...strs);
         }
     }
+}
+
+editor.onpaste = async e => {
+    e.preventDefault();
+    let text = (e.originalEvent || e).clipboardData.getData('text/plain');
+    parseAndPastePlainText(text);
     
     //range.selectNodeContents(textNode); обвести элемент выделением
 }
@@ -694,50 +699,56 @@ countDownButton.onclick = () => {
 
 editor.onbeforeinput = e => { 
     const sel = document.getSelection(); //e.inputType deleteContentBackward deleteContentForward
-    if (sel.type !== 'Caret') return;
+    if (sel.type !== 'Caret' || !e?.data?.trim) return;
     const range = sel.getRangeAt(0);
     
-    if (e.data?.trim && e.data.at(-1) === '/') {
-        e.preventDefault();
-        const textNode = sel.anchorNode;
-        const rawText = textNode.textContent;
-        if (textNode?.parentElement?.tagName !== 'A' || !sel.anchorOffset) return; 
-        const a = textNode.parentElement;
-
-        if (range.startOffset === rawText.length) {
+    if (e.data.length === 1) {
+        if (e.data.at(-1) === '/') {
+            e.preventDefault();
+            const textNode = sel.anchorNode;
+            const rawText = textNode.textContent;
+            if (textNode?.parentElement?.tagName !== 'A' || !sel.anchorOffset) return; 
+            const a = textNode.parentElement;
+    
+            if (range.startOffset === rawText.length) {
+                const newA = document.createElement('a');
+                newA.textContent = ' ';
+                if (a.dataset.time)
+                    newA.dataset.time = a.dataset.time;
+                a.after(newA);
+                sel.removeAllRanges();
+                const newRange = document.createRange();
+                newRange.setStart(newA.firstChild, 1);
+                newRange.setEnd(newA.firstChild, 1);
+                sel.addRange(newRange);
+                return;
+            }
+            
+            const slashPosition = sel.anchorOffset;
+            const left = rawText.slice(0, slashPosition);
+            const right = rawText.slice(slashPosition);
             const newA = document.createElement('a');
-            newA.textContent = ' ';
             if (a.dataset.time)
                 newA.dataset.time = a.dataset.time;
+            textNode.textContent = left;
+            newA.textContent = right;
             a.after(newA);
-            sel.removeAllRanges();
-            const newRange = document.createRange();
-            newRange.setStart(newA.firstChild, 1);
-            newRange.setEnd(newA.firstChild, 1);
-            sel.addRange(newRange);
-            return;
+            range.setStart(newA, 0);
+            range.setEnd(newA, 0);
+        } 
+        else if (e.data.at(-1) === '_') {
+            e.preventDefault();
+            const a = range.startContainer.parentElement;
+            const nextA = a?.nextElementSibling;
+            if (nextA?.tagName !== 'A') return;
+            a.textContent += nextA.textContent;
+            nextA.remove();
         }
-        
-        const slashPosition = sel.anchorOffset;
-        const left = rawText.slice(0, slashPosition);
-        const right = rawText.slice(slashPosition);
-        const newA = document.createElement('a');
-        if (a.dataset.time)
-            newA.dataset.time = a.dataset.time;
-        textNode.textContent = left;
-        newA.textContent = right;
-        a.after(newA);
-        range.setStart(newA, 0);
-        range.setEnd(newA, 0);
-    } 
-    else if (e.data?.trim && e.data.at(-1) === '_') {
+    } else if (e.data.includes(' ')) {// или '\n'
         e.preventDefault();
-        const a = range.startContainer.parentElement;
-        const nextA = a?.nextElementSibling;
-        if (nextA?.tagName !== 'A') return;
-        a.textContent += nextA.textContent;
-        nextA.remove();
+        parseAndPastePlainText(e.data);
     }
+    
     //e.preventDefault(); нельзя отменить тк срабатывает после изменения
     //onbeforeinput отменить можно
 
