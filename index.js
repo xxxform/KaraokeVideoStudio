@@ -142,7 +142,6 @@ canvasContext.fillStyle = "yellow";
 //todo fix следа буквы ё
 
 //todo возможность стирать первую строку
-//todo linespace колёсиком , zoom жест на телефоне
 
 //onbefore backspace/del caret prevent  если остался один симв удалить его - вставить br
 
@@ -155,13 +154,13 @@ canvasContext.fillStyle = "yellow";
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
 
-//todo задать правила переноса строки если строка не помещается. размер шрифта от vw
-//todo починить activestring
-//использовать api Screen Wake Lock API  кофе чтобы не заснула   
-//todo loopMode. draggable при started
-//todo смена разрешение
+//дизайн
+//todo растяжение загруженной картинки
 //todo max-width height 100v для renderCanvas
+//todo починить activestring
+//todo loopMode. draggable при started
 //кнопки копировать вставить слоги на таймлайне на позицию cursor
+//todo задать правила переноса строки если строка не помещается. размер шрифта от vw
 
 toolbarElem.ondblclick = () => {
     if (latencyInputLabel.hasAttribute('hidden')) {
@@ -171,6 +170,24 @@ toolbarElem.ondblclick = () => {
         lineSpacingInputLabel.setAttribute('hidden', '');
         latencyInputLabel.setAttribute('hidden', '');
     }
+}
+
+videoSizeX.onchange = videoSizeY.onchange = () => {
+    const newWidth = +videoSizeX.value;
+    const newHeight = +videoSizeY.value;
+    if (!newWidth || !newHeight || newWidth < 1 || newHeight < 1 ) return; 
+    renderCanvas.width = backgroundCanvas.width = padCanvas.width = textCanvas.width = newWidth;
+    renderCanvas.height = backgroundCanvas.height = padCanvas.height = textCanvas.height = newHeight;
+
+    canvasContext.font = `${Math.ceil(textCanvas.width / fontSizeInput.value)}px ${fontFamily.value}`;
+    canvasContext.textAlign = "left";
+    canvasContext.textBaseline = 'top';
+    bgCanvasContext.fillStyle = backgroundColor.value;
+    drawBackground();
+    drawPad();
+    recalcMetrics();
+    canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
+    showStringsByPosition();
 }
 
 latencyInput.oninput = () => {
