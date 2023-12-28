@@ -81,7 +81,6 @@ canvasContext.fillStyle = "yellow";
 //мультивыделение при удержании
 
 //при рендере написать сообщение. Пожалйста дождитесь окончания рендера, не закрывайте вкладку(иначе reqFrame заморозится)
-//использовать api Screen Wake Lock API  кофе чтобы не заснула   
 
 //todo интерактивный редактор шрифта на холсте, мини toolpicker.
 //сделать так, чтобы этот div был всегда, но клик на нее не срабатывал при !started
@@ -157,6 +156,12 @@ canvasContext.fillStyle = "yellow";
 */
 
 //todo задать правила переноса строки если строка не помещается. размер шрифта от vw
+//todo починить activestring
+//использовать api Screen Wake Lock API  кофе чтобы не заснула   
+//todo loopMode. draggable при started
+//todo смена разрешение
+//todo max-width height 100v для renderCanvas
+//кнопки копировать вставить слоги на таймлайне на позицию cursor
 
 toolbarElem.ondblclick = () => {
     if (latencyInputLabel.hasAttribute('hidden')) {
@@ -954,6 +959,7 @@ const run = async () => {
 render.onclick = async () => {
     const suggestedName = songName + "(Караоке).webm";
     const chunks = [];
+    let wakeLock = null;
     const handle = await (window.showSaveFilePicker ? window.showSaveFilePicker({ suggestedName }) : {
         createWritable: () => ({
             write: data => chunks.push(data),
@@ -970,6 +976,7 @@ render.onclick = async () => {
         })
     });
     const writable = await handle.createWritable();
+    if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen');
     const stream = audio.captureStream();
     stream.addTrack(renderCanvas.captureStream().getVideoTracks()[0]);
 
@@ -986,11 +993,17 @@ render.onclick = async () => {
     });
 
     audio.addEventListener('pause', () => {
+        document.querySelector('body > .bottom > .timeline').style.visibility = '';
+        if (wakeLock) {
+            wakeLock.release();
+            wakeLock = null;
+        }
         recording = false;
         recorder.stop();
         stream.getTracks().forEach(track => track.stop());
     }, { once: true });
 
+    document.querySelector('body > .bottom > .timeline').style.visibility = 'hidden';
     renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
     renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
     if (!strings[0]?.textContent && !strings[1]?.textContent) hiddenPad = true;
@@ -1363,7 +1376,7 @@ audio.onpause = e => {
     cursor.style.left = currentRelativeTime / (timelineDuration / 100) + '%';
     clearTimeout(timelineTimer);
     clearTimeout(timer);
-    main.onmousedown = main.ontouchstart = null
+    main[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
     started = false;
     updateLocalStorage(); //todo 
 }
@@ -1408,7 +1421,7 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         multipleSelectionMode = true;
         return;
     }
-    if (started || e.target.tagName !== 'SPAN') return
+    if (e.target.tagName !== 'SPAN') return
 
     const syllable = spanSyllableMap.get(e.target);
     const pxToSpan = (e.x || e.targetTouches[0].clientX) - e.target.getBoundingClientRect().x;
@@ -1469,10 +1482,10 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
 
     words[isMobile ? 'ontouchmove' : 'onmousemove'] = multipleSelectionMode ? multipleMoveHandler : moveHandler;
 
-    main.onclick = () => {
+    main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = () => {
         document.getSelection().removeAllRanges();
         multipleSelectionMode = false;
-        main.onclick = null;
+        main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
     };
 
     // words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
