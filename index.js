@@ -153,14 +153,14 @@ canvasContext.fillStyle = "yellow";
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
-
+//почистить код
 //дизайн
 //todo растяжение загруженной картинки
 //todo max-width height 100v для renderCanvas
 //todo починить activestring
 //todo loopMode. draggable при started
 //кнопки копировать вставить слоги на таймлайне на позицию cursor
-//todo задать правила переноса строки если строка не помещается. размер шрифта от vw
+//кнопки клей и ножницы
 
 toolbarElem.ondblclick = () => {
     if (latencyInputLabel.hasAttribute('hidden')) {
@@ -670,11 +670,43 @@ editor.onpaste = async e => {
     //range.selectNodeContents(textNode); обвести элемент выделением
 }
 
-const stringsToEditor = () => {
+const splitSyllables = () => {
+    const sel = document.getSelection();
+    const range = sel.getRangeAt(0);
+    if (range.startContainer.nodeType !== Node.TEXT_NODE) return;
+    const textNode = sel.anchorNode;
+    const rawText = textNode.textContent;
+    if (range.startOffset === rawText.length || range.startOffset === 0) return;
+    if (textNode?.parentElement?.tagName !== 'A') return;
     
+    const a = textNode.parentElement;
+    const slashPosition = sel.anchorOffset;
+    const left = rawText.slice(0, slashPosition);
+    const right = rawText.slice(slashPosition);
+    const newA = document.createElement('a');
+    if (a.dataset.time)
+        newA.dataset.time = a.dataset.time;
+    textNode.textContent = left;
+    newA.textContent = right;
+    a.after(newA);
+    range.setStart(newA, 0);
+    range.setEnd(newA, 0);
 }
-//todo addEventListener("animationstart", (event) => {}); transitionend
-stringsToEditor();
+
+const uniteSyllables = () => {
+    const sel = document.getSelection();
+    const range = sel.getRangeAt(0);
+    if (range.startContainer.nodeType !== Node.TEXT_NODE) return;
+    const a = range.startContainer.parentElement;
+    const nextA = a?.nextElementSibling;
+    if (nextA?.tagName !== 'A') return;
+    a.textContent += nextA.textContent;
+    nextA.remove(); 
+    //todo extra склейка нескольких в пределах строки
+}
+
+cutButton.onclick = splitSyllables;
+uniteButton.onclick = uniteSyllables;
 // todo в новом li почемуто формируется span, а в ссылке вложенная ссылка если перенести строку
 //если курсор стоит после ссылки текстовые ноды вставляются новые много. нужно установить курсор правильно 
 //todo кнопка клей и cut
@@ -750,49 +782,15 @@ countDownButton.onclick = () => {
 editor.onbeforeinput = e => { 
     const sel = document.getSelection(); //e.inputType deleteContentBackward deleteContentForward
     if (sel.type !== 'Caret' || !e?.data?.trim) return;
-    const range = sel.getRangeAt(0);
     
     if (e.data.length === 1) {
         if (e.data.at(-1) === '/') {
             e.preventDefault();
-            const textNode = sel.anchorNode;
-            const rawText = textNode.textContent;
-            if (textNode?.parentElement?.tagName !== 'A' || !sel.anchorOffset) return; 
-            const a = textNode.parentElement;
-    
-            if (range.startOffset === rawText.length) {
-                const newA = document.createElement('a');
-                newA.textContent = ' ';
-                if (a.dataset.time)
-                    newA.dataset.time = a.dataset.time;
-                a.after(newA);
-                sel.removeAllRanges();
-                const newRange = document.createRange();
-                newRange.setStart(newA.firstChild, 1);
-                newRange.setEnd(newA.firstChild, 1);
-                sel.addRange(newRange);
-                return;
-            }
-            
-            const slashPosition = sel.anchorOffset;
-            const left = rawText.slice(0, slashPosition);
-            const right = rawText.slice(slashPosition);
-            const newA = document.createElement('a');
-            if (a.dataset.time)
-                newA.dataset.time = a.dataset.time;
-            textNode.textContent = left;
-            newA.textContent = right;
-            a.after(newA);
-            range.setStart(newA, 0);
-            range.setEnd(newA, 0);
+            splitSyllables();
         } 
         else if (e.data.at(-1) === '_') {
             e.preventDefault();
-            const a = range.startContainer.parentElement;
-            const nextA = a?.nextElementSibling;
-            if (nextA?.tagName !== 'A') return;
-            a.textContent += nextA.textContent;
-            nextA.remove();
+            uniteSyllables();
         }
     } else if (e.data.includes(' ')) {// или '\n'
         e.preventDefault();
@@ -1095,18 +1093,6 @@ const createSyllableMap = e => {
     }));
 
 
-}
-
-splitButton.onclick = () => { //todo 
-    textarea.value = textarea.value
-        .split('\n')
-        .map(string => {
-            let words = string.trim().split(' ').map(word => convert(word.trim())).join(' ');
-            return words.replaceAll(/( |^)([бвгджзйклмнпрстфхцчшщ]{1})( )/gi, "$1$2_");
-        })
-        .join('\n');
-        createSyllableMap();
-        updateLocalStorage();
 }
 
 textarea.onchange = () => {createSyllableMap(); updateLocalStorage();}

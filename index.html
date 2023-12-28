@@ -195,7 +195,8 @@
             width: 100%;
             z-index: 2;
             display: none;
-            background-color: rgba(0,0,0,.7);
+            background-color: rgba(0,0,0,.7); 
+            /* 1e1b1bf0 */
 
             #exitEditorButton {
                 display: none;
@@ -220,6 +221,8 @@
                 }
             }
             #editor {
+                padding: 0;
+                padding-left: 1.5em;
                 background-color: black;
                 outline: 3px solid rgb(20,20,20);
                 margin: 0;
@@ -349,7 +352,8 @@
     <div id="wordEditor">
         <div class="toolbar">
             <button id="countDownButton">321</button>
-            <button id="splitButton">Разбить на слоги</button>
+            <button id="cutButton">✄</button>
+            <button id="uniteButton">⫘</button> 
             <input type="checkbox" id="autoSplit" checked>
             <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
             <button title="Сбросить время выделенных слогов" id="resetSyllableTimeButton">🕒</button>
