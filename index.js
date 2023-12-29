@@ -128,21 +128,19 @@ canvasContext.fillStyle = "yellow";
 //todo возможность стирать первую строку
 
 //onbefore backspace/del caret prevent  если остался один симв удалить его - вставить br
-
-//todo onplay скрывать toolbars. bgEditToolkit.classList.remove('active'); (мб не мешает)
 //todo нельзя просто так взять выделить и написать слово вместо выделенного
+
+//не мешает
+//max-width height 100v для renderCanvas(не мешает)
+//фикс странного fontsize
 
 //инструкция
 /*
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
-//todo max-width height 100v для renderCanvas
-//вырезать упоминания видео
 //почистить код
 //дизайн, выбрать шрифт интерфейса
-//фикс странного fontsize
-//todo починить activestring
 //todo loopMode. draggable при started  //loopmode. если on, когда timeline кончается, песня перематывается в начало timeline
 
 //кнопки копировать вставить слоги на таймлайне на позицию cursor
@@ -354,9 +352,6 @@ wordEditor[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         setCursorPosition();
         showStringsByPosition();
         wordEditor.style.display = '';
-        if (strings[stringCursor])
-            strings[stringCursor].classList.remove('active');
-        //todo отрисовать текущие строки drawString. указатель смещается если было перемотано(может указывать на несуществующие элементы)
     };
 }
 
@@ -368,7 +363,10 @@ textEditToolkit.onclick = () => {
 
     textEditToolkit.ondblclick = () => {
         wordEditor.style.display = 'block';
-        strings[stringCursor].classList.add('active');
+        const syllable = strings[stringCursor];
+        if (!syllable) return;
+        syllable.classList.add('active');
+        setTimeout(() => syllable && syllable.classList.remove('active'), 2000);
     }
 
     const removeHandlers = () => {
