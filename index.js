@@ -29,6 +29,7 @@ let latency = isMobile ? 300 : 0;
 if (isMobile) latencyInput.value = latency;
 lineSpacingInput.value = lineSpacing;
 let wakeLock = null;
+let loopMode = false;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -142,9 +143,9 @@ canvasContext.fillStyle = "yellow";
 */
 //почистить код
 //дизайн, выбрать шрифт интерфейса
-//todo loopMode. draggable при started  //loopmode. если on, когда timeline кончается, песня перематывается в начало timeline
 
 //кнопки копировать вставить слоги на таймлайне на позицию cursor
+loopModeCheckbox.onchange = () => loopMode = loopModeCheckbox.checked;
 
 toolbarElem.ondblclick = () => {
     if (latencyInputLabel.hasAttribute('hidden')) {
@@ -1073,11 +1074,18 @@ const runCursor = () => {
     cursor.style.left = '100%';
 
     timelineTimer = setTimeout(function next() {
-        showTimeline(timelinePosition + timelineDuration, timelineDuration);
-        requestAnimationFrame(() => {
-            cursor.style.transitionDuration = timelineDuration + 's';
-            cursor.style.left = '100%';
-        });
+        if (loopMode) {
+            audio.currentTime = timelinePosition;
+            audio.pause();
+            audio.play();
+        } else {
+            showTimeline(timelinePosition + timelineDuration, timelineDuration);
+            requestAnimationFrame(() => {
+                cursor.style.transitionDuration = timelineDuration + 's';
+                cursor.style.left = '100%';
+            }); //todo fix mobile no cursor. setTimeout или css animation onend callback
+        }
+        
         timelineTimer = setTimeout(next, timelineDuration * 1000);
     }, timelineRight * 1000);
 }
@@ -1168,7 +1176,7 @@ const clickHandler = () => { // как из js изменить css класс �
 }
 
 const showTimeline = (from, duration) => {
-    timelinePosition = audio.currentTime;
+    timelinePosition = audio.currentTime; //заменить на позиция + latency
     cursor.style.transitionDuration = '0s';
     cursor.style.left = '0%';
     words.innerHTML = '';
@@ -1184,7 +1192,7 @@ const showTimeline = (from, duration) => {
         syllableSpanMap.set(syllable, span);
         spanSyllableMap.set(span, syllable);
         
-        const relativeTime = (time - latency / 1000) - from; //секунд от начала from для word
+        const relativeTime = time - from; //секунд от начала from для word
         const secondInOnePersent = duration / 100; 
         const res = relativeTime / secondInOnePersent; // сколько процентов в rel;
         //перевести секунды
@@ -1203,6 +1211,7 @@ scale.oninput = e => {
     const newVal = +scale.textContent;
     if (!newVal || newVal < 1) return;
     timelineDuration = newVal;
+    updateTimelineDuration();
 }
 
 plus.onclick = () => {

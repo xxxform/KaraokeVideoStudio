@@ -122,7 +122,12 @@
         .timeline {
             position: relative;
             height: 5em;
-
+            .buttonsRight {
+                position: absolute;
+                top: 0;
+                right: 0;
+                z-index: 1; 
+            }
             .buttons {
                 position: absolute;
                 top: 0;
@@ -337,6 +342,9 @@
                 <button id="plus">+</button>
                 <button id="minus">-</button>
                 <span contenteditable="true" id="scale"></span>
+            </div>
+            <div class="buttonsRight">
+                <input type="checkbox" id="loopModeCheckbox">
             </div>
             <div id="cursor"></div>
             <div id="words"></div>
