@@ -28,6 +28,7 @@ const isMobile = ('ontouchstart' in window);
 let latency = isMobile ? 300 : 0;
 if (isMobile) latencyInput.value = latency;
 lineSpacingInput.value = lineSpacing;
+let wakeLock = null;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -918,7 +919,6 @@ document.addEventListener('DOMContentLoaded', () => {
 render.onclick = async () => {
     const suggestedName = songName + "(Караоке).webm";
     const chunks = [];
-    let wakeLock = null;
     const handle = await (window.showSaveFilePicker ? window.showSaveFilePicker({ suggestedName }) : {
         createWritable: () => ({
             write: data => chunks.push(data),
@@ -935,7 +935,6 @@ render.onclick = async () => {
         })
     });
     const writable = await handle.createWritable();
-    if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen');
     const stream = audio.captureStream();
     stream.addTrack(renderCanvas.captureStream().getVideoTracks()[0]);
 
@@ -953,10 +952,6 @@ render.onclick = async () => {
 
     audio.addEventListener('pause', () => {
         document.querySelector('body > .bottom > .timeline').style.visibility = '';
-        if (wakeLock) {
-            wakeLock.release();
-            wakeLock = null;
-        }
         recording = false;
         recorder.stop();
         stream.getTracks().forEach(track => track.stop());
@@ -1189,7 +1184,7 @@ const showTimeline = (from, duration) => {
         syllableSpanMap.set(syllable, span);
         spanSyllableMap.set(span, syllable);
         
-        const relativeTime = time - from; //секунд от начала from для word
+        const relativeTime = (time - latency / 1000) - from; //секунд от начала from для word
         const secondInOnePersent = duration / 100; 
         const res = relativeTime / secondInOnePersent; // сколько процентов в rel;
         //перевести секунды
@@ -1251,6 +1246,10 @@ audio.onplay = e => {
     play();
     
     started = true;
+    if (navigator.wakeLock) 
+        navigator.wakeLock.request('screen')
+            .then(res => wakeLock = res)
+            .catch(() => {});
 }
 
 audio.onpause = e => {
@@ -1262,6 +1261,10 @@ audio.onpause = e => {
     main[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
     started = false;
     updateLocalStorage(); //todo 
+    if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+    }
 }
 
 /*
