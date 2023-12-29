@@ -33,23 +33,17 @@ var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
 var padCanvasContext = padCanvas.getContext("2d");
 var renderCanvasContext = renderCanvas.getContext('2d');
-//canvasContext.font = `${fontSize}vh Arial`;
 canvasContext.font = `${Math.ceil(textCanvas.width / 24)}px Arial`;
 canvasContext.textAlign = "left";
 canvasContext.textBaseline = 'top'; //горизонтальная линия проходящая в самом низу текста или вверху
 canvasContext.fillStyle = "yellow";
 
 //todo закешируй prevString. и если текущая строка !== prevString то пересчитать метрики. Их тоже закешировать
-//todo размер шрифта можно указывать как vh или vw
-//todo после изменения размеров холста весь canvas сбрасывается и старый ctx больше недоступен. также заново нужно задавать стили шрифта и всего что в общем потоке здесь объявлено
 
 //проблемы с буковй ё. остаё не делится на два слога, своём
 //todo тест мобильной версии
-//фоновая картинка 
-//настройки скрыть за троеточием
 
-//loopmode. если on, когда timeline кончается, песня перематывается в начало timeline
-//#scale сделать contenteditable
+//#extra scale сделать contenteditable при dblclick
 
 //порядок слоёв
 //фон
@@ -67,9 +61,6 @@ canvasContext.fillStyle = "yellow";
 
 //после входа создается fixed button выйти из полноекранного.
 //по умолчанию она display none, после касания становится видимой на 4 секунды
-
-//выполнено
-//перемотка двигает курсор и не перерисовывает таймлайн пока курсор не выйдет за его пределы по времени
 
 //todo extra
 //мультитач жест zoom для увеличения размера шрифта
@@ -95,10 +86,6 @@ canvasContext.fillStyle = "yellow";
 //растянуть невидимый inputFile на всю ширину canvas при первоначальной загрузке чтобы кликнув на него 
 //или найти способ ручного вызова меню выбора файла при клике любого элемента
 
-//input audio растянуть
-
-//todo выбрать шрифт интерфейса
-
 //При клике на картинку. появляется draggable div представитель картинки. по центру canvas появляется input#size
 
 //нужно ли видео.
@@ -111,6 +98,10 @@ canvasContext.fillStyle = "yellow";
 //Значит он может здесь создать видео с ритмическим караоке текстом, удалить хромокей в видеоредакторе и вставить свое видео
 //видео в планах extra
 //задачи для видео. смещение по времени, так как минусовка может не попадать
+//если делать видео то:
+//всё действия с отображением строки, все таймеры переносятся в worker
+//если делать плавное заполнение, отрисовку отдать worker'у чтобы не блокировать поток. 
+//в requestFrame проверять процент заполнение(остальное в заметках)
 
 //Откудать брать аудио. Если есть аудио то с него(в приоритете). Если аудио нет а есть видео, берём с видео. 
 //аудио controls при наличии видео управляет и видео
@@ -123,13 +114,6 @@ canvasContext.fillStyle = "yellow";
 //todo возможность редактировать(удалять изменять склеивать) слоги в таймлайне. даблклик активирует редактор навешивает на span contenteditable.
 //или инструменты клей и ножницы в тулбаре с соответствующими кликами 
 
-//todo кнопка 321. 
-//вставит перед строкой на которую стоит указатель обратный отсчёт
-// в случае если место указателя имеет валидное время и слева есть место до трёх секунд
-
-//кнопка сбросить время. время выделенных слогов будет сброшено(установлено -1)
-
-//в div#cursor на таймлайне поместить слог, на котором сейчас стоит указатель
 //extra шкала секунд на таймлайне
 
 //todo grey вместо brown для слогов без time
@@ -153,14 +137,15 @@ canvasContext.fillStyle = "yellow";
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
-//почистить код
-//дизайн
-//todo растяжение загруженной картинки
 //todo max-width height 100v для renderCanvas
+//вырезать упоминания видео
+//почистить код
+//дизайн, выбрать шрифт интерфейса
+//фикс странного fontsize
 //todo починить activestring
-//todo loopMode. draggable при started
+//todo loopMode. draggable при started  //loopmode. если on, когда timeline кончается, песня перематывается в начало timeline
+
 //кнопки копировать вставить слоги на таймлайне на позицию cursor
-//кнопки клей и ножницы
 
 toolbarElem.ondblclick = () => {
     if (latencyInputLabel.hasAttribute('hidden')) {
@@ -315,7 +300,7 @@ bgColor.oninput = bgOpacity.oninput = drawPad;
 bgEditToolkit.onclick = () => {
     if (started || bgEditToolkit.classList.contains('active')) return;
     bgEditToolkit.classList.add('active');
-    const placeholder = 'Нажмите два раза для выбора изображения/видео';
+    const placeholder = 'Нажмите два раза для выбора изображения';
 
     if (!img.src) 
         bgEditToolkit.firstElementChild.textContent = placeholder;
@@ -796,28 +781,6 @@ editor.onbeforeinput = e => {
         e.preventDefault();
         parseAndPastePlainText(e.data);
     }
-    
-    //e.preventDefault(); нельзя отменить тк срабатывает после изменения
-    //onbeforeinput отменить можно
-
-    // else 
-    // if (e.inputType === 'insertParagraph') {
-    //     for (let li of editor.children) {
-    //         if (li.textContent) continue;
-    //         const a = document.createElement('a')
-    //         a.textContent = '';
-    //         li.append(a);
-    //         a.focus();
-
-    //         var sel = window.getSelection();
-    //         var range = document.createRange();
-    //         range.setStart(a, 0);
-    //         range.collapse(true);
-    //         sel.removeAllRanges();
-    //         sel.addRange(range);
-    //     }
-    // }
-
 }
 
 editor.oninput = e => {
@@ -954,23 +917,6 @@ document.addEventListener('DOMContentLoaded', () => {
     recalcMetrics();
 })
 
-const run = async () => {
-    //const desktop = streamToVideo(desktopStream);
-
-    video = document.createElement('video');
-    video.srcObject = desktopStream;
-    video.play();
-    
-    //const context = renderCanvas.getContext('2d');
-    // renderCanvas.width = 1920;
-    // renderCanvas.height = 1080;
-    
-    // (function draw() {
-    //     bgCanvasContext.drawImage(video, 0, 0, 1920, 1080);
-    //     requestAnimationFrame(draw);
-    // })();
-};
-
 render.onclick = async () => {
     const suggestedName = songName + "(Караоке).webm";
     const chunks = [];
@@ -1032,70 +978,9 @@ render.onclick = async () => {
     audio.play();
 };
 
- //если менять размер то всем блокам: backgroundCanvas.height = textCanvas.height = renderCanvas.height = 7000
-
-function streamToVideo(stream) {
-    let video = document.createElement('video');
-    video.srcObject = stream;
-    video.play();
-
-    // video.style.width = stream.width;
-    // video.style.height = stream.height;
-
-    
-
-    return video;
-}
-
-async function getDesktop() {
-    return await navigator.mediaDevices.getDisplayMedia({video: true});
-}
-
 const getTimelinePercent = (time = audio.currentTime) => 
     (time - timelinePosition) / (timelineDuration / 100);
 
-const createSyllableMap = e => {
-    strings.length = 0; 
-    //минус - все расставленные точки будут потеряны при редактировании текста
-    //компроммис - пересобрать только редактированную строку
-    
-    strings.push(...textarea.value.split(/\n/).map(string => {
-        //time - когда будет закрашен этот слог, index - где слог кончается
-        const syllables = [{ syllable: '', time: -1 }];
-        //массив слогов с вырезанными /_ с time закрытия. в слог входит пробел
-
-        for (let symbol of string) {
-            const lastSyllable = syllables[syllables.length - 1];
-            
-            if (symbol === '/') {
-                syllables.push({ syllable: '', time: -1 });
-                continue;
-            } else
-            if (symbol === '_') {
-                lastSyllable.syllable += ' ';
-                continue;
-            } else
-            if (symbol === ' ') {
-                syllables.push({ syllable: '', time: -1 });
-            } else
-            if (symbol === '-') {
-                syllables.push({ syllable: '-', time: -1 });
-                continue;
-            }
-            lastSyllable.syllable += symbol;
-        }
-
-        syllables.forEach(syllable => {
-            syllable.timelineSpan = null;
-        })
-
-        return syllables;
-    }));
-
-
-}
-
-textarea.onchange = () => {createSyllableMap(); updateLocalStorage();}
 //_ склеивает частицу в один слог со словом. пробел, /, - разделители слогов
 // первым делом нужно сплит по \n - организация строчек песни в массив.
 // каждый слог должен быть привязан ко времени в секундах. 
@@ -1172,16 +1057,13 @@ fileInput.onchange = () => {
 bgfileInput.onchange = e => {
     const file = bgfileInput.files[0];
     if (file) {
-        if (file.type.includes('video')) {
-            
-            return;
-        } 
-        
         img.onload = () => {
             bgCanvasContext.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
-            bgX = bgY = 0;
-            bgCanvasContext.drawImage(img, 0, 0); 
-            //todo extra сжать по ширине и высоте до полного экрана, установить size
+            bgY = 0; //множитель до полноэкранного заполнения по высоте
+            const multiplier = backgroundCanvas.height / img.height;
+            bgX = backgroundCanvas.width / 2 - (img.width * multiplier) / 2; //центрируем
+            bgSize.value = multiplier * 100; 
+            drawBackground();
             bgEditToolkit.firstElementChild.style.display = 'none';
         }
         img.src = URL.createObjectURL(file);

@@ -320,7 +320,7 @@
                     <input type="color" id="backgroundColor" value="#000000">
                     <input type="number" value="100" id="bgSize">%
                     <label hidden id="latencyInputLabel"><input type="number" value="0" id="latencyInput">ms</label>
-                    <input type="file" title="изображение/видео" id="bgfileInput" hidden accept="image/*, video/*"/>
+                    <input type="file" title="изображение" id="bgfileInput" hidden accept="image/*"/>
                     
                     <div class="source" hidden>
                         <label>Минусовка <br><input type="file" id="fileInput" accept="audio/*"/></label> <br>
@@ -357,13 +357,9 @@
             <input type="checkbox" id="autoSplit" checked>
             <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
             <button title="Сбросить время выделенных слогов" id="resetSyllableTimeButton">🕒</button>
-            <!-- ведро заливки 🖌 x ⌫ ⎚ ⏲ 🕛 🕕 🕒 ⧖ ⌀ ␡ del res C    Подозреваю, что для EN придется асинхронно обращаться во вне или скачивать словарь с исключениями-->
         </div>
         <div class="content"> 
-            <!-- Вешай на каждый a data-id и следи за добаслением их через mutationObserver -->
             <ul id="editor" contenteditable class="editable"> </ul>
-
-            <textarea hidden id="textarea" cols="30" rows="10"></textarea> <br> 
         </div>
     </div>
 </body>
