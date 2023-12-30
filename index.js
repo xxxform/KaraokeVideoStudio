@@ -30,6 +30,7 @@ if (isMobile) latencyInput.value = latency;
 lineSpacingInput.value = lineSpacing;
 let wakeLock = null;
 let loopMode = false;
+let cursorAnimationPlayer = null;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -1106,8 +1107,7 @@ bgfileInput.onchange = e => {
 
 const runCursor = () => {
     let timelineRight = timelinePosition + timelineDuration - audio.currentTime; 
-    cursor.style.transitionDuration = timelineRight + 's';
-    cursor.style.left = '100%';
+    cursorAnimationPlayer = cursor.animate([{left: getTimelinePercent() + "%"}, {left: "100%"}], timelineRight * 1000);
 
     timelineTimer = setTimeout(function next() {
         if (loopMode) {
@@ -1116,10 +1116,7 @@ const runCursor = () => {
             audio.play();
         } else {
             showTimeline(timelinePosition + timelineDuration, timelineDuration);
-            requestAnimationFrame(() => {
-                cursor.style.transitionDuration = timelineDuration + 's';
-                cursor.style.left = '100%';
-            }); //todo fix mobile no cursor. setTimeout или css animation onend callback
+            cursorAnimationPlayer = cursor.animate([{left: "0%"}, {left: "100%"}], timelineDuration * 1000);
         }
         
         timelineTimer = setTimeout(next, timelineDuration * 1000);
@@ -1234,8 +1231,7 @@ const clickHandler = () => { // как из js изменить css класс �
 
 const showTimeline = (from, duration) => {
     timelinePosition = audio.currentTime; //заменить на позиция + latency
-    cursor.style.transitionDuration = '0s';
-    cursor.style.left = '0%';
+    cursor.animate([{left: "100%"}, {left: "0%"}], 0);
     words.innerHTML = '';
     //будет тормозить - ориентироваться на курсор. не должно тк перебор 300 элементов с +syllable.dataset.time занял 0.3ms
     //Курсор устанавливать как первый найденный. при перемотке назад поиск идет от курсора на убывание 
@@ -1319,9 +1315,8 @@ audio.onplay = e => {
 }
 
 audio.onpause = e => {
-    let currentRelativeTime = audio.currentTime - timelinePosition; //секунд от начала timelinePosition
-    cursor.style.transitionDuration = 0 + 's';
-    cursor.style.left = currentRelativeTime / (timelineDuration / 100) + '%';
+    cursorAnimationPlayer.cancel();
+    cursor.style.left = getTimelinePercent() + '%';
     clearTimeout(timelineTimer);
     clearTimeout(timer);
     main[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
@@ -1461,7 +1456,6 @@ audio.ontimeupdate = e => {
     if (currentPercent < 0 || currentPercent > 99) {
         showTimeline(audio.currentTime, timelineDuration);
     } else {
-        cursor.style.transitionDuration = 0 + 's';
         cursor.style.left = currentPercent + '%';
     }
 }
