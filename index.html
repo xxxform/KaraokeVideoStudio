@@ -123,17 +123,25 @@
             position: relative;
             height: 5em;
             .buttonsRight {
+                opacity: .5;
+                display: flex;
+                /* flex-direction: column; */
                 position: absolute;
                 top: 0;
                 right: 0;
                 z-index: 1; 
             }
             .buttons {
+                opacity: .5;
+                /* display: flex;
+                flex-direction: column-reverse;
+                justify-content: center; */
                 position: absolute;
                 top: 0;
                 left: 0;
                 z-index: 1;
                 #scale {
+                    text-align: center;
                     display: inline-block;
                     height: 100%;
                     transition-timing-function: linear;
@@ -148,7 +156,6 @@
                 left: 0%;
                 position: absolute;
                 height: 100%;
-                width: 1px;
                 border-right: 1px dashed red;
                 transition-property: left;
                 transition-timing-function: linear;
@@ -186,6 +193,7 @@
             }
             #placeholder {
                 position: absolute;
+                /* todo поместить в контейнер и назначить max-width чтобы на мобильном уменьшить текст */
                 width: 100%;
                 height: 100%;
                 display: flex;
@@ -310,7 +318,6 @@
                     <label id="lineSpacingInputLabel" hidden><input type="number" value="0" id="lineSpacingInput"></label>
                     <input type="color" title="Цвет незакрашенных слогов" value="#FFFF00" id="rightSyllableColorInput">
                     <input type="color" title="Цвет закрашенных слогов" value="#FF0000" id="leftSyllableColorInput"> 
-                    <!-- ↕<input type="number" id="lineSpacing">  -->
                     <br>
                     <div>
                         <input type="color" title="Цвет подложки" id="bgColor">
@@ -345,6 +352,7 @@
             </div>
             <div class="buttonsRight">
                 <input type="checkbox" id="loopModeCheckbox">
+                <!-- <button id="pasteTimeline">📋</button>              -->
             </div>
             <div id="cursor"></div>
             <div id="words"></div>

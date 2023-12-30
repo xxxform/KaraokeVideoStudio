@@ -138,14 +138,47 @@ canvasContext.fillStyle = "yellow";
 
 //инструкция
 /*
+Мультивыделение. лкм по первому слогу, зажать шифт и лкм по второму
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
 //почистить код
+//в toolbar кнопки завернуть в два flexbox чтобы выровнять
 //дизайн, выбрать шрифт интерфейса
+//непрозрачные span, корректное выделение
+//кнопка del по выделенным span обнулить их время
 
-//кнопки копировать вставить слоги на таймлайне на позицию cursor
+//todo fix cursor animation css
+//кнопка вставить слоги на таймлайне на позицию cursor.
+//копироваться будет автоматически при выделении(из spansToDrag добыть ссылки на syllables или непосредственное копирование из editor)
+//после вставки эти span выделятся и включится multiselect mode
+//или сделать кнопку вставить как dblclick чекбокс лупмод
+let lastSelectedSyllables = null;
+
+const cloneSyllablesBySpanRange = inEditor => () => {
+    const sel = document.getSelection();
+    const spansRange = sel.getRangeAt(0);
+    const syllablesRange = document.createRange();
+    const startSyllable = inEditor ? spansRange.startContainer?.parentElement : spanSyllableMap.get(spansRange.startContainer?.parentElement);
+    const endSyllable = inEditor ? spansRange.endContainer?.parentElement : spanSyllableMap.get(spansRange.endContainer?.parentElement);
+    if (!startSyllable || !endSyllable) return;
+    syllablesRange.setStartBefore(startSyllable); 
+    syllablesRange.setEndAfter(endSyllable);
+    lastSelectedSyllables = syllablesRange.cloneContents();
+}
+
+const pasteSelectedSyllables = () => {
+    if (!lastSelectedSyllables) return;
+    const currentTime = audio.currentTime;
+    //найти первый встретившийся a слева и вставить фрагмент после него в новую строчку обновив время
+
+}
+
 loopModeCheckbox.onchange = () => loopMode = loopModeCheckbox.checked;
+loopModeCheckbox.ondblclick = pasteSelectedSyllables;
+words.onpaste = pasteSelectedSyllables;
+editor.oncopy = cloneSyllablesBySpanRange(true);
+words.oncopy = cloneSyllablesBySpanRange(false);
 
 toolbarElem.ondblclick = () => {
     if (latencyInputLabel.hasAttribute('hidden')) {
@@ -1022,9 +1055,12 @@ const showStringsByPosition = () => {
     
     drawString(stringCursor, syllableCursor - 1);
 
+    if (!recording)
     for (let span of words.children) {
-        const syllable = spanSyllableMap.get(span);
-        span.classList[audio.currentTime > syllable.time ? 'add' : 'remove']('color');
+        const syllable = spanSyllableMap.get(span); 
+        const isAdd = audio.currentTime > syllable.dataset.time;
+        span.classList[isAdd ? 'add' : 'remove']('color');
+        //if (isAdd && cursor.textContent) cursor.textContent = '';  //todo если на курсоре есть слог убрать его
     }
 
     if (nextString) drawString(stringCursor + 1); 
@@ -1114,14 +1150,33 @@ const shiftWordCursors = () => {
     }
 }
 
+//ищет ближайший слог со временем и при достижении рисует его и сдвигает к нему курсор
+const timerToNearSyllableWithTime = (syllable, show) => {
+    const nextSyllableIndex = Array.prototype.indexOf.call(syllables, syllable);
+    //if (!~nextSyllableIndex) return;
+    for (let i = nextSyllableIndex + 1; i < syllables.length; i++) {
+        const a = syllables[i];
+        const time = +a.dataset.time;
+        if (!(time + 1)) continue;
+
+        const aIndex = Array.prototype.indexOf.call(a.parentElement.children, a);
+        const liIndex = Array.prototype.indexOf.call(strings, a.parentElement);
+        timeToNext = (time - audio.currentTime) * 1000 - latency;
+        return timer = setTimeout(() => {
+            stringCursor = liIndex;
+            syllableCursor = aIndex;
+            show(a);
+        }, timeToNext);
+    }
+}
+
 const play = () => {
+    if (stringCursor === -1) return; //todo не допускать строк без a
     let currentString = strings[stringCursor];
     let nextSyllable = currentString.children[syllableCursor];
     const time = +nextSyllable.dataset.time;
     let timeToNext = (time - audio.currentTime) * 1000 - latency;
-    if (!(time + 1)) return;
-    
-    timer = setTimeout(function show(syllable) {
+    const show = function show(syllable) {
         drawString(stringCursor, syllableCursor);
         if (!recording) {
             const span = syllableSpanMap.get(syllable);
@@ -1134,13 +1189,13 @@ const play = () => {
         nextSyllable = currentString.children[syllableCursor];
         const time = +nextSyllable.dataset.time;
         let timeToNext = (time - audio.currentTime) * 1000 - latency;
-        if (!(time + 1)) return;
+        if (!(time + 1)) return timerToNearSyllableWithTime(nextSyllable, show);
         if (timeToNext < 4) show(nextSyllable);
         else timer = setTimeout(show, timeToNext, nextSyllable);
-    }, timeToNext, nextSyllable);
+    }
 
-    // мы сейчас на audio.current time
-    // следующий слог 
+    if (!(time + 1)) return timerToNearSyllableWithTime(nextSyllable, show);
+    timer = setTimeout(show, timeToNext, nextSyllable);
 }
 
 const clickHandler = () => { // как из js изменить css класс глобально? или css переменную
@@ -1152,8 +1207,6 @@ const clickHandler = () => { // как из js изменить css класс �
     if (!~stringCursor) return;
     let currentString = strings[stringCursor];
     let syllable = currentString.children[syllableCursor];
-    const prevSyllableTime = +syllables[Array.prototype.indexOf.call(syllables, syllable) - 1]?.dataset?.time;
-    if ((prevSyllableTime + 1) && prevSyllableTime > clickTime) return;
     syllable.dataset.time = clickTime;
     drawString(stringCursor, syllableCursor);
 
@@ -1161,17 +1214,23 @@ const clickHandler = () => { // как из js изменить css класс �
 
     const currentPercent = (clickTime - timelinePosition) / (timelineDuration / 100) + '%';
     const span = syllableSpanMap.get(syllable);
-    if (span?.style) { //секунд от начала timelinePosition 
+    if (span?.style && span?.parentElement) { //секунд от начала timelinePosition 
         span.style.left = currentPercent;
         clearTimeout(timer);
-        play();
+        play(); //todo слог -1 при скраббинге остается на курсоре
     } else {
         const span = document.createElement('span');
         span.textContent = syllable.textContent || 'Пусто'; //todo здесь span.textContent может рассинхронизироваться при редактировании
         syllableSpanMap.set(syllable, span);
         spanSyllableMap.set(span, syllable);
+        span.classList.add('color');
         span.style.left = currentPercent;
-        words.append(span);
+        const syllableIndex = Array.prototype.indexOf.call(syllables, syllable);
+        const prevSpan = syllableSpanMap.get(syllables[syllableIndex - 1]);
+        const nextSpan = prevSpan?.nextElementSibling;
+        if (prevSpan?.parentElement) prevSpan.after(span);
+        else if (nextSpan) nextSpan.before(span);
+        else words.prepend(span);
     } 
 }
 
@@ -1295,7 +1354,7 @@ const getSelectedSpans = selection => {
 }
 
 let prevSelectedSpans = [];
-//переделать
+//todo переделать
 document.onselectionchange = e => {
     prevSelectedSpans.forEach(span => span.classList.remove('active'));
     const selection = getSelection();
@@ -1325,7 +1384,8 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
     let spansToDrag = [];
     
     if (multipleSelectionMode) {
-        spansToDrag = getSelectedSpans(selection); 
+        spansToDrag = getSelectedSpans(selection);
+        if (isMobile) cloneSyllablesBySpanRange(false);
         document.getSelection().removeAllRanges();
         if (!spansToDrag.includes(e.target)) {
             multipleSelectionMode = false; 
