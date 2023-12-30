@@ -1227,9 +1227,7 @@ const clickHandler = () => { // как из js изменить css класс �
         span.style.left = currentPercent;
         const syllableIndex = Array.prototype.indexOf.call(syllables, syllable);
         const prevSpan = syllableSpanMap.get(syllables[syllableIndex - 1]);
-        const nextSpan = prevSpan?.nextElementSibling;
         if (prevSpan?.parentElement) prevSpan.after(span);
-        else if (nextSpan) nextSpan.before(span);
         else words.prepend(span);
     } 
 }
