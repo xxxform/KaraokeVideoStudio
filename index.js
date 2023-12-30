@@ -139,6 +139,7 @@ canvasContext.fillStyle = "yellow";
 
 //инструкция
 /*
+кнопка del или backspace по выделенным span обнулит их время
 Мультивыделение. лкм по первому слогу, зажать шифт и лкм по второму
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
@@ -147,9 +148,7 @@ canvasContext.fillStyle = "yellow";
 //в toolbar кнопки завернуть в два flexbox чтобы выровнять
 //дизайн, выбрать шрифт интерфейса
 //непрозрачные span, корректное выделение
-//кнопка del по выделенным span обнулить их время
 
-//todo fix cursor animation css
 //кнопка вставить слоги на таймлайне на позицию cursor.
 //копироваться будет автоматически при выделении(из spansToDrag добыть ссылки на syllables или непосредственное копирование из editor)
 //после вставки эти span выделятся и включится multiselect mode
@@ -975,7 +974,7 @@ render.onclick = async () => {
 
     //если значение не установлено, новый фрейм будет захвачен при изменении canvas. иначе fps   new MediaStream([stream, audioStream])
     var recorder = new MediaRecorder(stream, {
-        videoBitsPerSecond : 250000000, mimeType: 'video/webm;codecs=vp9' //todo MediaRecorder.isTypeSupported('video/mpeg')
+        videoBitsPerSecond : 250000000, mimeType: 'video/webm;codecs=vp9' // vp9,opus todo MediaRecorder.isTypeSupported('video/mpeg')
     });
 
     recorder.addEventListener("dataavailable", async (event) => {
@@ -1255,6 +1254,7 @@ const showTimeline = (from, duration) => {
 }
 
 const updateTimelineDuration = () => {
+    if (started) cursorAnimationPlayer.cancel();
     clearTimeout(timelineTimer);
     showTimeline(audio.currentTime, timelineDuration);
     if (started) requestAnimationFrame(runCursor);
@@ -1344,6 +1344,21 @@ const getSelectedSpans = selection => {
     let toSpanIndex = spans.indexOf(selection.focusNode.parentElement);
     if (fromSpanIndex > toSpanIndex) [fromSpanIndex, toSpanIndex] = [toSpanIndex, fromSpanIndex];
     return spans.slice(fromSpanIndex, toSpanIndex + 1);
+}
+
+//todo пользователь тащит span на курсор, он сработает в старой позиции
+document.onkeydown = e => {
+    if (!(e.key === 'Delete' || e.key === 'Backspace')) return;
+    const sel = getSelection();
+    const range = sel.getRangeAt(0);
+    if (!range.startContainer?.parentElement || !range.startContainer.parentElement.closest('#words')) return;
+
+    getSelectedSpans(sel).forEach(span => {
+        const syllable = spanSyllableMap.get(span);
+        if (syllable) syllable.dataset.time = '-1', span.remove();
+    });
+    audio.pause();
+    audio.play();
 }
 
 let prevSelectedSpans = [];
