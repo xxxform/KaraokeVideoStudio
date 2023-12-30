@@ -168,10 +168,31 @@ const cloneSyllablesBySpanRange = inEditor => () => {
 }
 
 const pasteSelectedSyllables = () => {
-    if (!lastSelectedSyllables) return;
+    if (!lastSelectedSyllables || started) return;
     const currentTime = audio.currentTime;
-    //найти первый встретившийся a слева и вставить фрагмент после него в новую строчку обновив время
+    const allA = lastSelectedSyllables.querySelectorAll('a');
+    let currentString = strings[stringCursor];
+    let firstTime = -1;
+    allA.forEach(a => {
+        const time = +a.dataset.time;
+        if (!(time + 1)) return;
 
+        if (!~firstTime) {
+            firstTime = time;
+            a.dataset.time = currentTime;
+        } else {
+            const delta = a.dataset.time - firstTime;
+            a.dataset.time = currentTime + delta;
+        }
+    });
+
+    if (currentString) currentString.before(lastSelectedSyllables);
+    else editor.append(lastSelectedSyllables);
+
+    showTimeline(timelinePosition, timelineDuration);
+    cursor.style.left = getTimelinePercent() + '%';
+    setCursorPosition();
+    showStringsByPosition();
 }
 
 loopModeCheckbox.onchange = () => loopMode = loopModeCheckbox.checked;
@@ -380,10 +401,11 @@ bgEditToolkit.onclick = () => {
         bgEditToolkit.classList.remove('active');
     }
 }
-
+//exit
 wordEditor[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
     if (!(e.target.closest('#editor') || e.target.closest('.toolbar'))) {
-        showTimeline(audio.currentTime, timelineDuration);
+        showTimeline(timelinePosition, timelineDuration);
+        cursor.style.left = getTimelinePercent() + '%';
         setCursorPosition();
         showStringsByPosition();
         wordEditor.style.display = '';
@@ -1038,7 +1060,7 @@ const setCursorPosition = () => { //устанавливает позицию к
     });
 
     syllableCursor = ~syllableIndex ? syllableIndex : 0;
-    stringCursor = ~stringIndex ? stringIndex : 0;
+    stringCursor = ~stringIndex ? stringIndex : -1;
 
     if (!recording) {
         const currSyllable = strings[stringCursor]?.children?.[syllableCursor];
@@ -1114,7 +1136,7 @@ const runCursor = () => {
             audio.pause();
             audio.play();
         } else {
-            showTimeline(timelinePosition + timelineDuration, timelineDuration);
+            showTimeline(audio.currentTime, timelineDuration);
             cursorAnimationPlayer = cursor.animate([{left: "0%"}, {left: "100%"}], timelineDuration * 1000);
         }
         
@@ -1229,7 +1251,7 @@ const clickHandler = () => { // как из js изменить css класс �
 }
 
 const showTimeline = (from, duration) => {
-    timelinePosition = audio.currentTime; //заменить на позиция + latency
+    timelinePosition = from; //заменить на позиция + latency
     cursor.animate([{left: "100%"}, {left: "0%"}], 0);
     words.innerHTML = '';
     //будет тормозить - ориентироваться на курсор. не должно тк перебор 300 элементов с +syllable.dataset.time занял 0.3ms
@@ -1357,8 +1379,13 @@ document.onkeydown = e => {
         const syllable = spanSyllableMap.get(span);
         if (syllable) syllable.dataset.time = '-1', span.remove();
     });
-    audio.pause();
-    audio.play();
+
+    if (started) {
+        audio.pause();
+        audio.play();
+    } else {
+        setCursorPosition();
+    }
 }
 
 let prevSelectedSpans = [];
