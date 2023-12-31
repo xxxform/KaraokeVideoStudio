@@ -146,20 +146,30 @@ canvasContext.fillStyle = "yellow";
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
 
-//changelist
-//поддержка актуального состояния строк на экране при перетаскивании слогов
-//обрезка вставленного фрагмент до следующего ближайшего времени
-//выделение вставленного
-//вставка по кнопке
-//перетаскивание при проигрывании
-//режим цикла от установленного пользователем курсора до конца timeline
+//сохранение в localstorage всех настроек
+//кнопка выгрузить проект downloadJSONButton. кнопка загрузить проект из json
+//жест на телефонах сужение bg по пифагору. убрать на них size и вместо него по дефолту latency видимый
 
 //почистить код
 //в toolbar кнопки завернуть в два flexbox чтобы выровнять
 //дизайн, выбрать шрифт интерфейса
 //непрозрачные span, корректная подсветка выделенных span. убрать выделение на таймлайне span::selection {color: none, background-color: rgba(0,0,0,0)} 
-//как оформить ведро(обнуление time). только на мобилках, при loopmode
-//делать ли delete удалением выделенных слогов
+
+//сделать delete удалением выделенных слогов а backspace обнулением
+
+//ведро появляется при наличии выделенного диапазона words. BINGO
+//если делать ведро то - первый клик удалит с таймлайна, второй клик из проекта
+//сначала ведро это красные часы, после нажатия становится ведром, потом убирается 
+
+//а кнопка paste при наличии скопированного lastSelectedSyllables
+//кнопка 321 появляется при наличии времени и места слева (4сек) у слога под кареткой
+
+//goto кнопка возможность перемотки из editor. При клике на слог появляется кнопка.
+//если указатель на красный, перемотает до ближайшего зеленого или в начало если нет. 
+//и закроет editor
+//часы и goto появляются только при фокусе на тексте. обернуть их в span
+//gotoSyllableTimeButton
+// 🗑
 
 let lastSelectedSyllables = null;
 
@@ -178,6 +188,7 @@ const cloneSyllablesBySpanRange = inEditor => () => {
         li.append(lastSelectedSyllables);
         lastSelectedSyllables = li;
     }
+    pasteTimelineButton.hidden = false;
 }
 
 const pasteSelectedSyllables = () => {
@@ -265,7 +276,7 @@ const loopCheckboxHandler = () => {
     loopStartTime = loopMode ? audio.currentTime : -1; 
 }
 loopModeCheckbox.onchange = loopCheckboxHandler;
-pasteTimeline[isMobile ? 'ontouchstart' : 'onmousedown'] = pasteSelectedSyllables;
+pasteTimelineButton[isMobile ? 'ontouchstart' : 'onmousedown'] = pasteSelectedSyllables;
 words.onpaste = pasteSelectedSyllables;
 editor.oncopy = cloneSyllablesBySpanRange(true);
 words.oncopy = cloneSyllablesBySpanRange(false);
@@ -667,17 +678,10 @@ editor.oncut = e => {
      */
 }
 
-const parseAndPastePlainText = text => {
-    text = text.replaceAll(/\r\n/g, '\n');
-    const sel = window.getSelection();
-    const range = sel.getRangeAt(0);
-
-    if (!sel.rangeCount) return;
-        
+//устанавливает правильное выделение перед удалением 
+const setValidEditorSelection = range => {
     const start = range.startContainer;
     let end = range.endContainer;
-
-    //устанавливает правильное выделение перед удалением 
     if (['LI', 'A'].includes(start.tagName)) {
         range.setStartBefore(start.closest('li'));
     } else
@@ -701,6 +705,17 @@ const parseAndPastePlainText = text => {
 
         if (isLast && isAllSelect) range.setEndAfter(li);
     }
+}
+
+const parseAndPastePlainText = text => {
+    text = text.replaceAll(/\r\n/g, '\n');
+    const sel = window.getSelection();
+    const range = sel.getRangeAt(0);
+
+    if (!sel.rangeCount) return;
+    const start = range.startContainer;
+    setValidEditorSelection(range);
+    
     const splitted = text.split('\n');
     //
     let beforeStartATime = -1; 
@@ -1439,23 +1454,47 @@ multipleSelectionMode становится true;
 
 const getSelectedSpans = selection => {
     const spans = Array.from(words.children); //anchorNode всегда textNode
-    let fromSpanIndex = spans.indexOf(selection.anchorNode.parentElement);
-    let toSpanIndex = spans.indexOf(selection.focusNode.parentElement);
+    let fromSpanIndex = spans.indexOf(selection.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection.anchorNode);
+    let toSpanIndex = spans.indexOf(selection.focusNode?.nodeType === Node.TEXT_NODE ? selection.focusNode.parentElement : selection.focusNode);
     if (fromSpanIndex > toSpanIndex) [fromSpanIndex, toSpanIndex] = [toSpanIndex, fromSpanIndex];
     return spans.slice(fromSpanIndex, toSpanIndex + 1);
 }
 
-//todo пользователь тащит span на курсор, он сработает в старой позиции
-document.onkeydown = e => {
-    if (!(e.key === 'Delete' || e.key === 'Backspace')) return;
+const deleteHandler = () => {
     const sel = getSelection();
     const range = sel.getRangeAt(0);
-    if (!range.startContainer?.parentElement || !range.startContainer.parentElement.closest('#words')) return;
+    if (!range.startContainer?.parentElement) return;
+    const par = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer;
 
-    getSelectedSpans(sel).forEach(span => {
-        const syllable = spanSyllableMap.get(span);
-        if (syllable) syllable.dataset.time = '-1', span.remove();
-    });
+    if (!(par.closest('#words') || par.closest('#editor'))) return;
+
+    if (par.closest('#words')) {
+        const selected = getSelectedSpans(sel);
+        sel.removeAllRanges();
+        const newRange = document.createRange();
+        selected.forEach((span, i, arr) => {
+            const syllable = spanSyllableMap.get(span);
+            if (syllable) {
+                if (!i) { //выделяем всю строку от начала
+                    if (syllable.parentElement.firstElementChild === syllable) 
+                        newRange.setStartBefore(syllable.parentElement); 
+                    else newRange.setStartBefore(syllable);
+                }
+                if (i === arr.length - 1) { //до конца
+                    if (syllable.parentElement.lastElementChild === syllable) 
+                        newRange.setEndAfter(syllable.parentElement); 
+                    else newRange.setEndAfter(syllable);
+                }
+                syllable.dataset.time = '-1', span.remove();
+            }
+        });
+        sel.addRange(newRange);
+        deleteTimelineSyllableButton.textContent = '🗑';
+    } else if (par.closest('#editor')) {
+        range.deleteContents();
+        deleteTimelineSyllableButton.hidden = true;
+        deleteTimelineSyllableButton.textContent = '🕒';
+    }
 
     if (started) {
         clearTimeout(timer);
@@ -1468,11 +1507,22 @@ document.onkeydown = e => {
     }
 }
 
+document.onkeydown = e => {
+    if (!(e.key === 'Delete' || e.key === 'Backspace')) return;
+    deleteHandler();
+}
+
+deleteTimelineSyllableButton.onclick = () => {
+    const sel = getSelection();
+    if (!sel.rangeCount) return;
+    deleteHandler();
+}
+
 let prevSelectedSpans = [];
 //todo переделать
 document.onselectionchange = e => {
+    const selection = getSelection(); 
     prevSelectedSpans.forEach(span => span.classList.remove('active'));
-    const selection = getSelection();
     if(selection.anchorNode?.parentElement?.parentElement !== words || selection.focusNode?.parentElement?.parentElement !== words) return;
     prevSelectedSpans = getSelectedSpans(selection);
     prevSelectedSpans.forEach(span => span.classList.add('active'));
@@ -1484,6 +1534,8 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
     //как только e.targetTouches.length == 2 переходим в multipleSelectionMode
     words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
     const clear = () => {
+        deleteTimelineSyllableButton.textContent = '🕒';
+        deleteTimelineSyllableButton.hidden = true;
         document.getSelection().removeAllRanges();
         multipleSelectionMode = false;
         main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
@@ -1496,6 +1548,7 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         return;
     }
     if (e.target.tagName !== 'SPAN') return clear();
+    deleteTimelineSyllableButton.hidden = false;
 
     const syllable = spanSyllableMap.get(e.target);
     const pxToSpan = (e.x || e.targetTouches[0].clientX) - e.target.getBoundingClientRect().x;

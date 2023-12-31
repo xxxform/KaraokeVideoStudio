@@ -130,6 +130,9 @@
                 top: 0;
                 right: 0;
                 z-index: 1; 
+                #deleteTimelineSyllableButton {
+                    background: brown;
+                }
             }
             .buttons {
                 opacity: .5;
@@ -353,7 +356,8 @@
             </div>
             <div class="buttonsRight">
                 <input type="checkbox" id="loopModeCheckbox">
-                <button id="pasteTimeline">📋</button>             
+                <button hidden id="pasteTimelineButton">📋</button>
+                <button hidden id="deleteTimelineSyllableButton">🕒</button>
             </div>
             <div id="cursor"></div>
             <div id="words"></div>
@@ -372,6 +376,9 @@
             <input type="checkbox" id="autoSplit" checked>
             <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
             <button title="Сбросить время выделенных слогов" id="resetSyllableTimeButton">🕒</button>
+            <!-- <button style="text-decoration-line: underline;" id="downloadJSONButton">⇩</button>  -->
+            <button id="gotoSyllableTimeButton">⏭︎</button> 
+            <!--⤓   ⭳  🠋  ⯮  ⮸  ⮯  ⇩  ⮷-->
         </div>
         <div class="content"> 
             <ul id="editor" contenteditable class="editable"> </ul>
