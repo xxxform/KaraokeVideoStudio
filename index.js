@@ -155,21 +155,38 @@ canvasContext.fillStyle = "yellow";
 //дизайн, выбрать шрифт интерфейса
 //непрозрачные span, корректная подсветка выделенных span. убрать выделение на таймлайне span::selection {color: none, background-color: rgba(0,0,0,0)} 
 
-//сделать delete удалением выделенных слогов а backspace обнулением
-
-//ведро появляется при наличии выделенного диапазона words. BINGO
-//если делать ведро то - первый клик удалит с таймлайна, второй клик из проекта
-//сначала ведро это красные часы, после нажатия становится ведром, потом убирается 
-
-//а кнопка paste при наличии скопированного lastSelectedSyllables
 //кнопка 321 появляется при наличии времени и места слева (4сек) у слога под кареткой
+//часы и goto(появляется при клике на слог) появляются только при фокусе на тексте. обернуть их в span
 
-//goto кнопка возможность перемотки из editor. При клике на слог появляется кнопка.
-//если указатель на красный, перемотает до ближайшего зеленого или в начало если нет. 
-//и закроет editor
-//часы и goto появляются только при фокусе на тексте. обернуть их в span
-//gotoSyllableTimeButton
-// 🗑
+gotoSyllableTimeButton.onclick = () => {
+    const sel = document.getSelection();
+    const a = sel.anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorNode.parentElement : sel.anchorNode;
+    let nearLeftTime = 0;
+
+    let i = Array.prototype.indexOf.call(syllables, a);
+    for (; i > -1; i--) {
+        const time = +syllables[i].dataset.time;
+        if (time + 1) {
+            nearLeftTime = time;
+            break;
+        }
+    }
+
+    if (started) {
+        audio.currentTime = nearLeftTime;
+        cursorAnimationPlayer.cancel();
+        clearTimeout(timelineTimer);
+        clearTimeout(timer);
+        setCursorPosition();
+        showStringsByPosition();
+        showTimeline(audio.currentTime, timelineDuration);
+        runCursor();
+        play();
+    } else 
+        audio.currentTime = nearLeftTime;
+    
+    wordEditor.style.display = '';
+}
 
 let lastSelectedSyllables = null;
 
