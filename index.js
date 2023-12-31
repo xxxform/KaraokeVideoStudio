@@ -31,6 +31,7 @@ lineSpacingInput.value = lineSpacing;
 let wakeLock = null;
 let loopMode = false;
 let cursorAnimationPlayer = null;
+let loopStartTime = -1;
 
 var bgCanvasContext = backgroundCanvas.getContext("2d");
 var canvasContext = textCanvas.getContext("2d");
@@ -144,11 +145,21 @@ canvasContext.fillStyle = "yellow";
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
+
+//changelist
+//поддержка актуального состояния строк на экране при перетаскивании слогов
+//обрезка вставленного фрагмент до следующего ближайшего времени
+//выделение вставленного
+//вставка по кнопке
+//перетаскивание при проигрывании
+//режим цикла от установленного пользователем курсора до конца timeline
+
 //почистить код
 //в toolbar кнопки завернуть в два flexbox чтобы выровнять
 //дизайн, выбрать шрифт интерфейса
-//непрозрачные span, корректная подсветка выделения
-//после вставки эти span выделятся и включится multiselect mode
+//непрозрачные span, корректная подсветка выделенных span. убрать выделение на таймлайне span::selection {color: none, background-color: rgba(0,0,0,0)} 
+//как оформить ведро(обнуление time). только на мобилках, при loopmode
+//делать ли delete удалением выделенных слогов
 
 let lastSelectedSyllables = null;
 
@@ -162,38 +173,99 @@ const cloneSyllablesBySpanRange = inEditor => () => {
     syllablesRange.setStartBefore(startSyllable); 
     syllablesRange.setEndAfter(endSyllable);
     lastSelectedSyllables = syllablesRange.cloneContents();
+    if (lastSelectedSyllables?.children?.length && lastSelectedSyllables?.firstElementChild?.tagName === 'A') {
+        const li = document.createElement('li');
+        li.append(lastSelectedSyllables);
+        lastSelectedSyllables = li;
+    }
 }
 
 const pasteSelectedSyllables = () => {
-    if (!lastSelectedSyllables || started) return;
+    if (!lastSelectedSyllables) return;
     const currentTime = audio.currentTime;
-    const allA = lastSelectedSyllables.querySelectorAll('a');
+    let allA = lastSelectedSyllables.querySelectorAll('a');
     let currentString = strings[stringCursor];
-    let firstTime = -1;
-    allA.forEach(a => {
-        const time = +a.dataset.time;
-        if (!(time + 1)) return;
 
+    let endTime = Infinity;
+    if (currentString?.firstElementChild) {
+        let i = Array.prototype.indexOf.call(syllables, currentString?.firstElementChild);
+        for (; i < syllables.length; i++) {
+            const time = +syllables[i].dataset.time;
+            if (time + 1) {
+                endTime = time;
+                break;
+            }
+        }
+    }
+
+    let isCrop = false;
+    let firstTime = -1;
+    let lastTime = -1;
+    allA.forEach(a => {
+        const crop = () => {
+            let li = a.parentElement;
+            a.remove();
+            if (li?.children?.length === 0) 
+                li.remove();
+        }
+        if (isCrop) {
+            crop();
+            return;
+        }
+        const time = +a.dataset.time;
+        if (!(time + 1)) return; 
+        //если время установлено
         if (!~firstTime) {
             firstTime = time;
             a.dataset.time = currentTime;
         } else {
             const delta = a.dataset.time - firstTime;
-            a.dataset.time = currentTime + delta;
+            a.dataset.time = lastTime = currentTime + delta;
+            if (lastTime > endTime) {
+                isCrop = true;
+                crop();
+            }
         }
     });
+
+    allA = lastSelectedSyllables.querySelectorAll('a');
 
     if (currentString) currentString.before(lastSelectedSyllables);
     else editor.append(lastSelectedSyllables);
 
-    showTimeline(timelinePosition, timelineDuration);
+    
+    showTimeline(timelinePosition, timelineDuration, lastTime > timelinePosition + timelineDuration ? lastTime : 0);
     cursor.style.left = getTimelinePercent() + '%';
-    setCursorPosition();
-    showStringsByPosition();
+
+    if (started) {
+        cursorAnimationPlayer.cancel();
+        clearTimeout(timelineTimer);
+        clearTimeout(timer);
+        setCursorPosition();
+        showStringsByPosition();
+        runCursor();
+        play();
+    } else {
+        setCursorPosition();
+        showStringsByPosition();
+    }
+
+    const first = syllableSpanMap.get(allA[0]);
+    const last = syllableSpanMap.get(allA[allA.length - 1]) || words.lastElementChild;
+    const range = document.createRange();
+    range.setStart(first.firstChild, 0);
+    range.setEnd(last.firstChild, 0);
+    document.getSelection().removeAllRanges();
+    document.getSelection().addRange(range);
+    multipleSelectionMode = true;
 }
 
-loopModeCheckbox.onchange = () => loopMode = loopModeCheckbox.checked;
-loopModeCheckbox.ondblclick = pasteSelectedSyllables;
+const loopCheckboxHandler = () => {
+    loopMode = loopModeCheckbox.checked;
+    loopStartTime = loopMode ? audio.currentTime : -1; 
+}
+loopModeCheckbox.onchange = loopCheckboxHandler;
+pasteTimeline[isMobile ? 'ontouchstart' : 'onmousedown'] = pasteSelectedSyllables;
 words.onpaste = pasteSelectedSyllables;
 editor.oncopy = cloneSyllablesBySpanRange(true);
 words.oncopy = cloneSyllablesBySpanRange(false);
@@ -1129,9 +1201,14 @@ const runCursor = () => {
 
     timelineTimer = setTimeout(function next() {
         if (loopMode) {
-            audio.currentTime = timelinePosition;
-            audio.pause();
-            audio.play();
+            audio.currentTime = loopStartTime;
+            cursorAnimationPlayer.cancel();
+            clearTimeout(timer);
+            setCursorPosition();
+            showStringsByPosition();
+            runCursor();
+            play();
+            return;
         } else {
             showTimeline(audio.currentTime, timelineDuration);
             cursorAnimationPlayer = cursor.animate([{left: "0%"}, {left: "100%"}], timelineDuration * 1000);
@@ -1231,6 +1308,7 @@ const clickHandler = () => { // как из js изменить css класс �
     const span = syllableSpanMap.get(syllable);
     if (span?.style && span?.parentElement) { //секунд от начала timelinePosition 
         span.style.left = currentPercent;
+        span.classList.add('color');
         clearTimeout(timer);
         play(); //todo слог -1 при скраббинге остается на курсоре
     } else {
@@ -1247,7 +1325,7 @@ const clickHandler = () => { // как из js изменить css класс �
     } 
 }
 
-const showTimeline = (from, duration) => {
+const showTimeline = (from, duration, overflow = 0) => {
     timelinePosition = from; //заменить на позиция + latency
     cursor.animate([{left: "100%"}, {left: "0%"}], 0);
     words.innerHTML = '';
@@ -1256,7 +1334,7 @@ const showTimeline = (from, duration) => {
     Array.prototype.some.call(syllables, syllable => {
         const time = +syllable.dataset.time;
         if (isNaN(time) || time < from) return false;
-        if (time > from + duration) return true;
+        if (time > (overflow || from + duration)) return true;
 
         const span = document.createElement('span');
         span.textContent = syllable.textContent || 'Пусто';
@@ -1345,6 +1423,8 @@ audio.onpause = e => {
         wakeLock.release();
         wakeLock = null;
     }
+    if (loopMode && ~loopStartTime) 
+        audio.currentTime = loopStartTime;
 }
 
 /*
@@ -1378,10 +1458,13 @@ document.onkeydown = e => {
     });
 
     if (started) {
-        audio.pause();
-        audio.play();
+        clearTimeout(timer);
+        setCursorPosition();
+        showStringsByPosition();
+        play();
     } else {
         setCursorPosition();
+        showStringsByPosition();
     }
 }
 
@@ -1400,6 +1483,11 @@ let multipleSelectionMode = false;
 words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
     //как только e.targetTouches.length == 2 переходим в multipleSelectionMode
     words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
+    const clear = () => {
+        document.getSelection().removeAllRanges();
+        multipleSelectionMode = false;
+        main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
+    };
 
     if (e.shiftKey) {multipleSelectionMode = true; return}
     if (e.touches?.length == 2) {
@@ -1407,12 +1495,13 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         multipleSelectionMode = true;
         return;
     }
-    if (e.target.tagName !== 'SPAN') return
+    if (e.target.tagName !== 'SPAN') return clear();
 
     const syllable = spanSyllableMap.get(e.target);
     const pxToSpan = (e.x || e.targetTouches[0].clientX) - e.target.getBoundingClientRect().x;
 
     const selection = getSelection();
+    const startRange = window.getSelection().rangeCount ? getSelection().getRangeAt(0).cloneRange() : null;
     let spansToDrag = [];
     
     if (multipleSelectionMode) {
@@ -1437,12 +1526,22 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         const currentTime = timelinePosition + newPercent * secondInOnePercent;
         syllable.dataset.time = currentTime;
         e.target.style.left = newPercent + '%';
+        
+        if (started) {
+            clearTimeout(timer);
+            setCursorPosition();
+            showStringsByPosition();
+            play();
+        } else {
+            setCursorPosition();
+            showStringsByPosition();
+        }
     }
 
     let multipleMoveHandler = moveEvent => {
         const fromSpan = parseFloat(spansToDrag[0].style?.left);
         const toSpan = parseFloat(spansToDrag[spansToDrag.length - 1].style?.left); //todo заменить на spansToDrat.at(-1) доступ с конца массива
-        const nextSpan = parseFloat(spansToDrag[spansToDrag.length - 1].nextElementSibling?.style?.left || 100);
+        const nextSpan = parseFloat(spansToDrag[spansToDrag.length - 1].nextElementSibling?.style?.left || Infinity);
         const prevSpan = parseFloat(spansToDrag[0].previousElementSibling?.style?.left || 0);
 
         // вычислить разницу. Брать prevPercent
@@ -1459,21 +1558,30 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
             syllable.dataset.time = currentTime;
             span.style.left = newPercent + '%';
         });
+
+        if (started) {
+            clearTimeout(timer);
+            setCursorPosition();
+            showStringsByPosition();
+            play();
+        } else {
+            setCursorPosition();
+            showStringsByPosition();
+        }
     }
 
     words[isMobile ? 'ontouchend' : 'onmouseup'] = () => {
-        if (multipleSelectionMode) document.getSelection().removeAllRanges();
+        if (multipleSelectionMode) {
+            document.getSelection().removeAllRanges();
+            document.getSelection().addRange(startRange);
+        }
         words.onmousemove = words.ontouchmove = null;
-        multipleSelectionMode = false;
+        //multipleSelectionMode = false;
     };
 
     words[isMobile ? 'ontouchmove' : 'onmousemove'] = multipleSelectionMode ? multipleMoveHandler : moveHandler;
 
-    main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = () => {
-        document.getSelection().removeAllRanges();
-        multipleSelectionMode = false;
-        main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
-    };
+    main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = clear;
 
     // words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
 
@@ -1497,5 +1605,6 @@ audio.ontimeupdate = e => {
     } else {
         cursor.style.left = currentPercent + '%';
     }
+    if (loopMode && !started) loopStartTime = audio.currentTime; //если пользователь мотает с loopMode
 }
 
