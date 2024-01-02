@@ -138,25 +138,28 @@ canvasContext.fillStyle = "yellow";
 //max-width height 100v для renderCanvas(не мешает)
 //фикс странного fontsize
 
+//extra кнопка выгрузить проект downloadJSONButton. кнопка загрузить проект из json
+//жест на телефонах сужение bg по пифагору. убрать на них size и вместо него по дефолту latency видимый
+//исправить: при нажатии на ножницы и toolbar editor теряет курсор
+
 //инструкция
 /*
+скрытый checkbox и язык в editor
 кнопка del или backspace по выделенным span обнулит их время
 Мультивыделение. лкм по первому слогу, зажать шифт и лкм по второму
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
 
-//сохранение в localstorage всех настроек
-//кнопка выгрузить проект downloadJSONButton. кнопка загрузить проект из json
-//жест на телефонах сужение bg по пифагору. убрать на них size и вместо него по дефолту latency видимый
+//сохранение в localstorage всех настроек:
+//размер шрифта
+//y offset
+//updatelocalstorage xysize для картинки делать только если эта картинка есть. саму картинку не созранять. если в ls есть сведения xysize то не центрировать и применить их
+//цвет подложки
 
 //почистить код
 //в toolbar кнопки завернуть в два flexbox чтобы выровнять
 //дизайн, выбрать шрифт интерфейса
-//непрозрачные span, корректная подсветка выделенных span. убрать выделение на таймлайне span::selection {color: none, background-color: rgba(0,0,0,0)} 
-
-//кнопка 321 появляется при наличии времени и места слева (4сек) у слога под кареткой
-//часы и goto(появляется при клике на слог) появляются только при фокусе на тексте. обернуть их в span
 
 gotoSyllableTimeButton.onclick = () => {
     const sel = document.getSelection();
@@ -299,12 +302,12 @@ editor.oncopy = cloneSyllablesBySpanRange(true);
 words.oncopy = cloneSyllablesBySpanRange(false);
 
 toolbarElem.ondblclick = () => {
-    if (latencyInputLabel.hasAttribute('hidden')) {
-        lineSpacingInputLabel.removeAttribute('hidden');
-        latencyInputLabel.removeAttribute('hidden');
+    if (latencyInputLabel.hidden) {
+        lineSpacingInputLabel.hidden = false;
+        latencyInputLabel.hidden = false;
     } else {
-        lineSpacingInputLabel.setAttribute('hidden', '');
-        latencyInputLabel.setAttribute('hidden', '');
+        lineSpacingInputLabel.hidden = true;
+        latencyInputLabel.hidden = true;
     }
 }
 
@@ -428,7 +431,7 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
     }
 }
 
-words.ondblclick = e => {
+words.parentElement.ondblclick = e => {
     fileInput.click();
 }
 
@@ -518,7 +521,11 @@ textEditToolkit.onclick = () => {
     textEditToolkit.ondblclick = () => {
         wordEditor.style.display = 'block';
         const syllable = strings[stringCursor];
-        if (!syllable) return;
+        if (!syllable) {
+            if (editor.lastElementChild) editor.lastElementChild.scrollIntoView();
+            return;
+        }
+        syllable.scrollIntoView();
         syllable.classList.add('active');
         setTimeout(() => syllable && syllable.classList.remove('active'), 2000);
     }
@@ -682,7 +689,13 @@ const observer = new MutationObserver((list) => {
 
  observer.observe(editor, { childList: true, subtree: true, characterData: true })
 
- editor.onblur = updateLocalStorage;
+editor.onblur = () => {
+    countDownButton.style.visibility = 'hidden';
+    updateLocalStorage();
+}
+
+wordEditor.firstElementChild.ondblclick = () => 
+    autosplitLanguageWrapper.hidden = !autosplitLanguageWrapper.hidden;
 
 editor.oncut = e => {
     //можно сохранить выделенное в Range.surroundContents(docfragment)
@@ -881,7 +894,7 @@ resetSyllableTimeButton.onclick = e => {
 }
 //todo баг. когда стираем, в конце остается красный квадрант
 //todo! сбивается курсор если есть два слога подряд с одинаковым временем
-countDownButton.onclick = () => {
+countDownButton[isMobile ? 'ontouchstart' : 'onmousedown'] = () => { 
     const sel = document.getSelection();
     if (sel.type === 'None') return;
     const range = sel.getRangeAt(0);
@@ -916,6 +929,8 @@ countDownButton.onclick = () => {
         [['1', aTime - 1]],
     ] //todo если на мобильном будет мерцание - от строк с числами отнять 0,5, поставить их время раньше следующего слога
     if (liIndex % 2) template.unshift([['', aTime - 3]],);
+    //сместить template[0] влево на полсекунды чтобы можно было перетаскивать
+    template[0][0][1] -= .5;
 
     currentLi.before(...parseJsonToDomElements(template));
 }
@@ -1539,10 +1554,37 @@ let prevSelectedSpans = [];
 //todo переделать
 document.onselectionchange = e => {
     const selection = getSelection(); 
-    prevSelectedSpans.forEach(span => span.classList.remove('active'));
-    if(selection.anchorNode?.parentElement?.parentElement !== words || selection.focusNode?.parentElement?.parentElement !== words) return;
-    prevSelectedSpans = getSelectedSpans(selection);
-    prevSelectedSpans.forEach(span => span.classList.add('active'));
+
+    if (prevSelectedSpans.length) {
+        prevSelectedSpans.forEach(span => span.classList.remove('active'));
+        prevSelectedSpans.length = 0;
+    }
+
+    const par = selection.anchorNode?.parentElement;
+    if (!par) return;
+
+    if (par.closest('#words')) {
+        prevSelectedSpans = getSelectedSpans(selection);
+        prevSelectedSpans.forEach(span => span.classList.add('active'));
+    }
+
+    if (par.closest('#editor')) {
+        const a = par.parentElement?.firstElementChild;
+
+        if (+a?.dataset?.time + 1) {
+            const aTime = +a.dataset.time;
+            let i = Array.prototype.indexOf.call(syllables, a);
+            let nearestTime = 0;
+            while (i--) {
+                const time = +syllables[i]?.dataset?.time;
+                if (time + 1) { nearestTime = time; break }
+            }
+            if ((aTime - nearestTime) >= 4) countDownButton.style.visibility = 'visible';
+            else if (countDownButton.style.visibility === 'visible') countDownButton.style.visibility = 'hidden';
+        } else if (countDownButton.style.visibility === 'visible') { 
+            countDownButton.style.visibility = 'hidden';
+        }
+    }
 }
 
 let multipleSelectionMode = false;

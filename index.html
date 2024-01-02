@@ -7,7 +7,30 @@
     <script src="./slogi.js"></script>
     <script defer src="./index.js"></script>
     <style>
+        /* 
+        audio::-webkit-media-controls-current-time-display {
+            color: white;
+            background-color: rgb(32, 32, 36);
+        }
+        audio::-webkit-media-controls-panel {
+            background-color: rgb(32, 32, 36);
+        }
+        audio::-webkit-media-controls-time-remaining-display {
+            color: white;
+        }
+        audio::-webkit-media-controls-volume-control-container {
+            color: white;
+        }
+        audio::-webkit-media-controls-volume-slider {
+            color: white;
+        }
+        audio::-webkit-media-controls-fullscreen-button {
+            color: white;
+        } */
+
         body {
+            color: white;
+            background: rgb(21, 21, 25);
             margin: 0;
             height: 100vh;
             width: 100vw;
@@ -112,6 +135,7 @@
         .bottom {
            flex: 0 0 auto;
             width: 100%;
+            background-color: rgb(32, 32, 36); 
         }
         audio {
             width: 100%;
@@ -123,7 +147,7 @@
             position: relative;
             height: 5em;
             .buttonsRight {
-                opacity: .5;
+                /* opacity: .5; */
                 display: flex;
                 /* flex-direction: column; */
                 position: absolute;
@@ -135,7 +159,7 @@
                 }
             }
             .buttons {
-                opacity: .5;
+                /* opacity: .5; */
                 /* display: flex;
                 flex-direction: column-reverse;
                 justify-content: center; */
@@ -168,7 +192,7 @@
                 width: 100%;
                 height: 100%;
                 > span {
-                    /* background-color: black; */
+                    background-color: rgb(32, 32, 36); 
                     right: 0;
                     position: absolute;
                     height: 100%;
@@ -176,15 +200,14 @@
                     border-left: 1px dotted red;
                     cursor: pointer;
                 }
-                /* > span:active {
-                    background-color: rgba(255,255,0,.3);
-                } */
+                > span::selection {
+                    color: none;
+                    background-color: rgba(0,0,0,0);
+                } 
                 .active {
-                    background-color: rgba(255,255,0,.3);
+                    background-color: rgb(255,255,0);
                 }
-                /* > span:has(span::selection) {
-                    background-color: red;
-                } */
+                
                 > span:nth-child(3n+1) {
                     align-items: baseline;
                 }
@@ -196,6 +219,7 @@
                 }
             }
             #placeholder {
+                user-select: none;
                 position: absolute;
                 /* todo поместить в контейнер и назначить max-width чтобы на мобильном уменьшить текст */
                 width: 100%;
@@ -203,7 +227,6 @@
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                z-index: -1;
             }
         }
         #wordEditor {
@@ -233,8 +256,11 @@
                 left: 0;
                 right: 0;
                 #resetSyllableTimeButton {
-                    /* text-decoration: line-through; */
                     background: brown;
+                }
+                #autosplitLanguageWrapper {
+                    position: absolute;
+                    right: 0;
                 }
             }
             #editor {
@@ -370,15 +396,17 @@
 
     <div id="wordEditor">
         <div class="toolbar">
-            <button id="countDownButton">321</button>
+            <button style="visibility: hidden" id="countDownButton">321</button>
             <button id="cutButton">✄</button>
             <button id="uniteButton">⫘</button> 
-            <input type="checkbox" id="autoSplit" checked>
-            <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
             <button title="Сбросить время выделенных слогов" id="resetSyllableTimeButton">🕒</button>
+            <button id="gotoSyllableTimeButton">⏭︎</button>
+            <button class="countDownButtonClass" style="visibility: hidden">321</button> <!-- для выравнивания -->
+            <span hidden id="autosplitLanguageWrapper">
+                <input type="checkbox" id="autoSplit" checked>
+                <select id="languageSyllableAlgorythm"><option value="RU">RU</option><option value="EN" disabled>EN</option></select> 
+            </span>
             <!-- <button style="text-decoration-line: underline;" id="downloadJSONButton">⇩</button>  -->
-            <button id="gotoSyllableTimeButton">⏭︎</button> 
-            <!--⤓   ⭳  🠋  ⯮  ⮸  ⮯  ⇩  ⮷-->
         </div>
         <div class="content"> 
             <ul id="editor" contenteditable class="editable"> </ul>
