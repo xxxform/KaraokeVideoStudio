@@ -139,8 +139,8 @@ canvasContext.fillStyle = "yellow";
 //фикс странного fontsize
 
 //extra кнопка выгрузить проект downloadJSONButton. кнопка загрузить проект из json
-//жест на телефонах сужение bg по пифагору. убрать на них size и вместо него по дефолту latency видимый
 //исправить: при нажатии на ножницы и toolbar editor теряет курсор
+//почистить код
 
 //инструкция
 /*
@@ -151,13 +151,15 @@ canvasContext.fillStyle = "yellow";
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
 */
 
+//todo нормальный fontsize
+
 //сохранение в localstorage всех настроек:
 //размер шрифта
+//linespacing из переменной
 //y offset
 //updatelocalstorage xysize для картинки делать только если эта картинка есть. саму картинку не созранять. если в ls есть сведения xysize то не центрировать и применить их
 //цвет подложки
 
-//почистить код
 //в toolbar кнопки завернуть в два flexbox чтобы выровнять
 //дизайн, выбрать шрифт интерфейса
 
@@ -301,7 +303,9 @@ words.onpaste = pasteSelectedSyllables;
 editor.oncopy = cloneSyllablesBySpanRange(true);
 words.oncopy = cloneSyllablesBySpanRange(false);
 
-toolbarElem.ondblclick = () => {
+if (!isMobile)
+toolbarElem.ondblclick = e => {
+    if (['INPUT', 'SELECT'].includes(e.target.tagName)) return;
     if (latencyInputLabel.hidden) {
         lineSpacingInputLabel.hidden = false;
         latencyInputLabel.hidden = false;
@@ -451,6 +455,12 @@ const drawBackground = () => {
 
 bgColor.oninput = bgOpacity.oninput = drawPad;
 
+const getLength = ({clientX: x1, clientY: y1}, {clientX: x2, clientY: y2}) => {
+    const leg1 = Math.abs(x2 - x1);
+    const leg2 = Math.abs(y2 - y1);
+    return Math.sqrt(leg1 ** 2 + leg2 ** 2);
+}
+
 bgEditToolkit.onclick = () => {
     if (started || bgEditToolkit.classList.contains('active')) return;
     bgEditToolkit.classList.add('active');
@@ -471,14 +481,25 @@ bgEditToolkit.onclick = () => {
     }
 
     bgEditToolkit[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
-        let tapY = (e.y || e.targetTouches[0].clientY);
-        let tapX = (e.x || e.targetTouches[0].clientX);
+        let startLength = -1;
+        const startBgSize = +bgSize.value;
+        if (e.touches?.length === 2) startLength = getLength(...e.touches);
+        
+        let tapY = (e.y || e.touches[0].clientY);
+        let tapX = (e.x || e.touches[0].clientX);
   
         toolbarElem.style.display = 'none';
 
         bgEditToolkit[isMobile ? 'ontouchmove' : 'onmousemove'] = moveEvent => {
-            const x = (moveEvent.x || moveEvent.targetTouches[0].clientX);
-            const y = (moveEvent.y || moveEvent.targetTouches[0].clientY);
+            if (~startLength) {
+                const newLength = getLength(...moveEvent.touches);
+                bgSize.value = startBgSize * (newLength / startLength);
+                drawBackground();
+                return;
+            }
+
+            const x = (moveEvent.x || moveEvent.touches[0].clientX);
+            const y = (moveEvent.y || moveEvent.touches[0].clientY);
             
             bgX += x - tapX;
             bgY += y - tapY;
@@ -538,16 +559,28 @@ textEditToolkit.onclick = () => {
     const wrapper = textEditToolkit.parentElement.getBoundingClientRect();
 
     textEditToolkit[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
+        let startLength = -1;
+        const startFontSize = +fontSizeInput.value;
+        if (e.touches?.length === 2) startLength = getLength(...e.touches);
+
         const tapY = (e.y || e.targetTouches[0].clientY) - wrapper.y;
         const spanY = e.target.getBoundingClientRect().y - wrapper.y
         const pxToSpan = tapY - spanY;
         //перетаскивая вниз на мобильном появляется шторка
         toolbarElem.style.display = 'none';
         textEditToolkit[isMobile ? 'ontouchmove' : 'onmousemove'] = moveEvent => {
-            const y = (moveEvent.y || (moveEvent.targetTouches[0].clientY)) - wrapper.y - pxToSpan;
-            const newPercent = y / (wrapper.height / 100);
-            textEditToolkit.style.top = newPercent + '%';
-            wordsYoffset = newPercent / 100;
+            if (~startLength) {
+                const newLength = getLength(...moveEvent.touches);
+                fontSizeInput.value = startFontSize * (startLength / newLength);
+                canvasContext.font = `${Math.ceil(textCanvas.width / fontSizeInput.value)}px ${fontFamily.value}`;
+                recalcMetrics();
+            } else {
+                const y = (moveEvent.y || (moveEvent.targetTouches[0].clientY)) - wrapper.y - pxToSpan;
+                const newPercent = y / (wrapper.height / 100);
+                textEditToolkit.style.top = newPercent + '%';
+                wordsYoffset = newPercent / 100;
+            }
+
             canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
             drawString(stringCursor, syllableCursor); //todo может быть баг если stringCursor === -1 
             if (strings[stringCursor + 1]) drawString(stringCursor + 1);
@@ -1078,6 +1111,12 @@ const parseDomJson = () => {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (isMobile) {
+        fontSizeInput.hidden = true;
+        lineSpacingInputLabel.hidden = false;
+        bgSizeWrapper.hidden = true;
+        latencyInputLabel.hidden = false;
+    }
     bgCanvasContext.fillStyle = backgroundColor.value;
     parseJsonWords(placeholderStrings);
     drawPad();
@@ -1086,6 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => document.documentElement.scrollTop = document.documentElement.scrollHeight, 0);
     textEditToolkit.style.top = wordsYoffset * 100 + '%';
     recalcMetrics();
+    drawBackground();
 })
 
 render.onclick = async () => {

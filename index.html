@@ -345,7 +345,7 @@
                         <option value="Brush Script MT">Brush Script MT</option>
                     </select>
                     <input type="number" id="fontSizeInput" value="24"> 
-                    <label id="lineSpacingInputLabel" hidden><input type="number" value="0" id="lineSpacingInput"></label>
+                    <label id="lineSpacingInputLabel" hidden><input type="number" value="0" min="0" step="0.1" id="lineSpacingInput"></label>
                     <input type="color" title="Цвет незакрашенных слогов" value="#FFFF00" id="rightSyllableColorInput">
                     <input type="color" title="Цвет закрашенных слогов" value="#FF0000" id="leftSyllableColorInput"> 
                     <br>
@@ -357,8 +357,8 @@
 
                 <div class="background">
                     <input type="number" value="1920" id="videoSizeX">x<input type="number" value="1080" id="videoSizeY"><button id="render">⬤</button> <br>
-                    <input type="color" id="backgroundColor" value="#000000">
-                    <input type="number" value="100" id="bgSize">%
+                    <input type="color" id="backgroundColor" value="#151519">
+                    <span id="bgSizeWrapper"><input type="number" value="100" id="bgSize">%</span>
                     <span hidden id="latencyInputLabel"><input type="number" value="0" id="latencyInput">ms</span>
                     <input type="file" title="изображение" id="bgfileInput" hidden accept="image/*"/>
                     
