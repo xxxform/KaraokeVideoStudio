@@ -159,6 +159,10 @@ canvasContext.fillStyle = "yellow";
 //y offset
 //updatelocalstorage xysize для картинки делать только если эта картинка есть. саму картинку не созранять. если в ls есть сведения xysize то не центрировать и применить их
 //цвет подложки
+//эти настройки будут отдельной записью с префиксом settngs(не со слогами) и будут обновляться toolkit onblur или также повесить mutationObserver
+
+//переделать сохранение updateLocalstorageText
+//будет через 10 сек после срабатывания mutationObserver. При повторном срабатывании обнулится и снова запустится setTimeout(commitChanges)
 
 //в toolbar кнопки завернуть в два flexbox чтобы выровнять
 //дизайн, выбрать шрифт интерфейса
@@ -1562,7 +1566,7 @@ const deleteHandler = () => {
         });
         sel.addRange(newRange);
         deleteTimelineSyllableButton.textContent = '🗑';
-    } else if (par.closest('#editor')) {
+    } else if (par.closest('#editor') && deleteTimelineSyllableButton.textContent === '🗑') {
         range.deleteContents();
         deleteTimelineSyllableButton.hidden = true;
         deleteTimelineSyllableButton.textContent = '🕒';
