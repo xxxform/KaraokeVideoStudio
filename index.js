@@ -443,6 +443,7 @@ const drawString = (stringIndex, toSyllableIndex = -1/*, параметр ука
 }
 
 words.parentElement.ondblclick = e => {
+    if (e.target.parentElement.classList.contains('interface')) return;
     fileInput.click();
 }
 
