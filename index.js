@@ -1260,22 +1260,24 @@ const showStringsByPosition = () => {
 
 fileInput.onchange = () => {
     if (fileInput.files[0]) {
+        let songNameOld = songName; 
         const name = fileInput.files[0].name;
         songName = name.slice(0, name.lastIndexOf('.'));
         audio.src = (window.URL || window.webkitURL).createObjectURL(fileInput.files[0]);
+        placeholder.style.display = 'none'
         let savedSong = localStorage.getItem(songName);
         
-        if (savedSong && confirm(`Найдена сохраненная версия караоке этой песни. Загрузить её?`)) {
+        if (savedSong) {
+            if (!confirm(`Найдена сохраненная версия караоке этой песни. Загрузить её?`)) return;
             parseJsonWords(JSON.parse(savedSong));
             stringCursor = 0;
             syllableCursor = 0;
             showStringsByPosition();
             showTimeline(audio.currentTime, timelineDuration);
-        }
-        placeholder.style.display = 'none';
-        if (!savedSong)
+        } else if (songNameOld && localStorage.getItem(songNameOld)) { //перед этой песней была другая(плюс), записать в минусовку её данные
             updateLocalStorageWords();
-        //todo updateLocalStorageSettings если загрузили минусовку после плюса
+            //updateLocalStorageSettings
+        }
     }   
 }
 
