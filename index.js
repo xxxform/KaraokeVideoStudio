@@ -897,13 +897,25 @@ const splitSyllables = () => {
 const uniteSyllables = () => {
     const sel = document.getSelection();
     const range = sel.getRangeAt(0);
-    if (range.startContainer.nodeType !== Node.TEXT_NODE) return;
+    if (range.startContainer?.nodeType !== Node.TEXT_NODE) return;
     const a = range.startContainer.parentElement;
-    const nextA = a?.nextElementSibling;
-    if (nextA?.tagName !== 'A') return;
-    a.textContent += nextA.textContent;
-    nextA.remove(); 
-    //todo extra склейка нескольких в пределах строки
+
+    if (sel.type === 'Caret' || range.startContainer === range.endContainer) {
+        const nextA = a?.nextElementSibling;
+        if (nextA?.tagName !== 'A') return;
+        a.textContent += nextA.textContent;
+        nextA.remove(); 
+        //склейка нескольких в пределах строки
+    } else if (sel.type === 'Range' && range.startContainer.parentElement.parentElement === range.endContainer.parentElement.parentElement) {
+        let textRight = '';
+        let toDelete = [];
+        for (let nextA = a.nextElementSibling; ![null, range.endContainer.parentElement.nextElementSibling].includes(nextA); nextA = nextA.nextElementSibling) {
+            textRight += nextA.textContent;
+            toDelete.push(nextA);
+        }
+        toDelete.forEach(a => a.remove());
+        a.textContent += textRight;
+    }
 }
 
 cutButton.onclick = splitSyllables;
@@ -1276,7 +1288,7 @@ fileInput.onchange = () => {
             showTimeline(audio.currentTime, timelineDuration);
         } else if (songNameOld && localStorage.getItem(songNameOld)) { //перед этой песней была другая(плюс), записать в минусовку её данные
             updateLocalStorageWords();
-            //updateLocalStorageSettings
+            // todo updateLocalStorageSettings
         }
     }   
 }
