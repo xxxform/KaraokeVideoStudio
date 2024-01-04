@@ -107,6 +107,9 @@ canvasContext.fillStyle = "yellow";
 //если делать плавное заполнение, отрисовку отдать worker'у чтобы не блокировать поток. 
 //в requestFrame проверять процент заполнение(остальное в заметках)
 
+//при рендере видео вместо картинки. в основном потоке рекурсивный reqAnimFrame рисует bg, видео, подложку, текст
+//worker(тк основной поток занят циклом rqFrame) занимается отрисовкой изменений текста по таймеру согласно ритму в свои canvas'ы
+
 //Откудать брать аудио. Если есть аудио то с него(в приоритете). Если аудио нет а есть видео, берём с видео. 
 //аудио controls при наличии видео управляет и видео
 //Показывать плейсхолдер и срабатывать этот обработчик только тогда
@@ -603,7 +606,7 @@ textEditToolkit.onclick = () => {
     }
 }
 
-const updateLocalStorage = () => {
+const updateLocalStorageWords = () => {
     if (songName)
         localStorage.setItem(songName, parseDomJson());
 }
@@ -726,9 +729,16 @@ const observer = new MutationObserver((list) => {
 
  observer.observe(editor, { childList: true, subtree: true, characterData: true })
 
+let timerToSave = -1;
+const saveLocalStorageObserver = new MutationObserver(() => {
+    clearTimeout(timerToSave);
+    timerToSave = setTimeout(updateLocalStorageWords, 3500);
+});
+
+saveLocalStorageObserver.observe(editor, { childList: true, subtree: true, characterData: true, attributeFilter: ['data-time'] });
+
 editor.onblur = () => {
     countDownButton.style.visibility = 'hidden';
-    updateLocalStorage();
 }
 
 wordEditor.firstElementChild.ondblclick = () => 
@@ -1263,6 +1273,9 @@ fileInput.onchange = () => {
             showTimeline(audio.currentTime, timelineDuration);
         }
         placeholder.style.display = 'none';
+        if (!savedSong)
+            updateLocalStorageWords();
+        //todo updateLocalStorageSettings если загрузили минусовку после плюса
     }   
 }
 
@@ -1509,7 +1522,7 @@ audio.onpause = e => {
     clearTimeout(timer);
     main[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
     started = false;
-    updateLocalStorage(); //todo 
+
     if (wakeLock) {
         wakeLock.release();
         wakeLock = null;
