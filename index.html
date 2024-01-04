@@ -89,6 +89,19 @@
                 .text, .background {
                     text-align: center;
                     display: none;
+                    > div {
+                        display: flex;
+                        justify-content: center;
+                        /* justify-content: space-around */
+                        align-items: center;
+                        > * {
+                            margin: 0 .1em;
+                            /* margin: 0 2px; */
+                        }
+                    }
+                    > div:first-child {
+                        margin-bottom: 2px;
+                    }
                 }
                 .background {
                     & input[type="number"]{
@@ -260,6 +273,9 @@
                 justify-content: center;
             }
             .toolbar {
+                /* display: flex;
+                justify-content: center;
+                align-items: center; */
                 position: fixed;
                 text-align: center;
                 left: 0;
@@ -340,24 +356,25 @@
 
             <div id="toolbarElem">
                 <div class="text">
-                    <select id="fontFamily">
-                        <option value="Arial" selected>Arial</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Helvetica">Helvetica</option>
-                        <option value="Tahoma">Tahoma</option>
-                        <option value="Courier New">Courier New</option>
-                        <option value="Trebuchet MS">Trebuchet MS</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="Garamond">Garamond</option>
-                        <option value="Palatino Linotype">Palatino Linotype</option>
-                        <option value="Brush Script MT">Brush Script MT</option>
-                    </select>
-                    <input type="number" id="fontSizeInput" value="24"> 
-                    <label id="lineSpacingInputLabel" hidden><input type="number" value="0" min="0" step="0.1" id="lineSpacingInput"></label>
-                    <input type="color" title="Цвет незакрашенных слогов" value="#FFFF00" id="rightSyllableColorInput">
-                    <input type="color" title="Цвет закрашенных слогов" value="#FF0000" id="leftSyllableColorInput"> 
-                    <br>
+                    <div>
+                        <select id="fontFamily">
+                            <option value="Arial" selected>Arial</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Helvetica">Helvetica</option>
+                            <option value="Tahoma">Tahoma</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Trebuchet MS">Trebuchet MS</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Garamond">Garamond</option>
+                            <option value="Palatino Linotype">Palatino Linotype</option>
+                            <option value="Brush Script MT">Brush Script MT</option>
+                        </select>
+                        <input type="number" id="fontSizeInput" value="24"> 
+                        <label id="lineSpacingInputLabel" hidden><input type="number" value="0" min="0" step="0.1" id="lineSpacingInput"></label>
+                        <input type="color" title="Цвет незакрашенных слогов" value="#FFFF00" id="rightSyllableColorInput">
+                        <input type="color" title="Цвет закрашенных слогов" value="#FF0000" id="leftSyllableColorInput"> 
+                    </div>
                     <div>
                         <input type="color" title="Цвет подложки" id="bgColor">
                         <input type="range" title="Прозрачность подложки" id="bgOpacity">
@@ -365,16 +382,17 @@
                 </div>
 
                 <div class="background">
-                    <input type="number" value="1920" id="videoSizeX">x<input type="number" value="1080" id="videoSizeY"><button id="render">⬤</button> <br>
-                    <input type="color" id="backgroundColor" value="#151519">
-                    <span id="bgSizeWrapper"><input type="number" value="100" id="bgSize">%</span>
-                    <span hidden id="latencyInputLabel"><input type="number" value="0" id="latencyInput">ms</span>
-                    <input type="file" title="изображение" id="bgfileInput" hidden accept="image/*"/>
-                    
-                    <div class="source" hidden>
-                        <label>Минусовка <br><input type="file" id="fileInput" accept="audio/*"/></label> <br>
-                        <label>Ссылка<input type="text"></label>
+                    <div>
+                        <input type="number" value="1920" id="videoSizeX"><input type="number" value="1080" id="videoSizeY"><button id="render">⬤</button>
                     </div>
+                    <div>
+                        <input type="color" id="backgroundColor" value="#151519">
+                        <span id="bgSizeWrapper"><input type="number" value="100" id="bgSize">%</span>
+                        <span hidden id="latencyInputLabel"><input type="number" value="0" id="latencyInput">ms</span>
+                    </div>
+
+                    <input type="file" title="изображение" id="bgfileInput" hidden accept="image/*"/>
+                    <input type="file" hidden id="fileInput" accept="audio/*"/>
                 </div>
             </div>
             
