@@ -17,7 +17,7 @@ let timelineTimer = -1;
 let spanSyllableMap = new WeakMap();
 let syllableSpanMap = new Map();
 let wordsYoffset = .75;
-let lineSpacing = 1.4; //todo extra
+let lineSpacing = 1.4;
 let bgX = 0;
 let bgY = 0;
 var img = new Image;
@@ -39,58 +39,15 @@ var padCanvasContext = padCanvas.getContext("2d");
 var renderCanvasContext = renderCanvas.getContext('2d');
 canvasContext.font = `${Math.ceil(textCanvas.width / 24)}px Arial`;
 canvasContext.textAlign = "left";
-canvasContext.textBaseline = 'top'; //горизонтальная линия проходящая в самом низу текста или вверху
+canvasContext.textBaseline = 'top';
 canvasContext.fillStyle = "yellow";
 
 //todo закешируй prevString. и если текущая строка !== prevString то пересчитать метрики. Их тоже закешировать
 
-//проблемы с буковй ё. остаё не делится на два слога, своём
-//todo тест мобильной версии
-
-//#extra scale сделать contenteditable при dblclick
-
-//порядок слоёв
-//фон
-//картинка / видео
-//текст с подложкой
-
-//для desktop сделать проще. если зажат e.shiftKey будет мультивыделение
-
-//для мобильной версии мультивыделение реализовать
-//касанием сначала одним пальцем слева, потом другим справа в нужном диапазоне
-//касание слева фиксируется на следующий элемент span, если нет то на первый
-
-//todo стиль для выделенных span. добавлять класс для всех draggable или всегда отслеживать text.onselectstart и document.onselectionchange внутри span если он parent.id === 'words'
-//сделать bg другого цвета. 
-
-//после входа создается fixed button выйти из полноекранного.
-//по умолчанию она display none, после касания становится видимой на 4 секунды
-
-//todo extra
-//мультитач жест zoom для увеличения размера шрифта
-//на компьютере - колесико мыши
-//тоже самое и с фоновым изображением
-
 //extra возможность добавить фоновое видео
 //при удержании пальца/кнопки слог тянется
-//мультивыделение при удержании
 
 //при рендере написать сообщение. Пожалйста дождитесь окончания рендера, не закрывайте вкладку(иначе reqFrame заморозится)
-
-//todo интерактивный редактор шрифта на холсте, мини toolpicker.
-//сделать так, чтобы этот div был всегда, но клик на нее не срабатывал при !started
-//если при !started кликнули в области canvas .75(перенести в переменную) + metrics.actualBoundingBoxDescent + lineSpase + metrics.actualBoundingBoxDescent
-//появляется прямоугольная область с шириной в canvas и высотой в строки. 
-//Она draggable, её можно перемещать по оси y. При этом перемещается текст по оси y согласно новой координате div top
-//Вверху слева этой области или по центру toolbar. 
-//в нём: карандашик(вызов редактора текста), шрифт, lineSpacing, цвет закрашенных/не слогов, цвет подложки
-//Если потянуть область за верхний край - изменится lineSpacing. За нижний - размер шрифта
-
-//по умолчанию написать в канвас "Введите \n текст" или Text\nText
-//растянуть невидимый inputFile на всю ширину canvas при первоначальной загрузке чтобы кликнув на него 
-//или найти способ ручного вызова меню выбора файла при клике любого элемента
-
-//При клике на картинку. появляется draggable div представитель картинки. по центру canvas появляется input#size
 
 //нужно ли видео.
 //что представляет из себя большинство задних планов караоке видео
@@ -110,6 +67,9 @@ canvasContext.fillStyle = "yellow";
 //при рендере видео вместо картинки. в основном потоке рекурсивный reqAnimFrame рисует bg, видео, подложку, текст
 //worker(тк основной поток занят циклом rqFrame) занимается отрисовкой изменений текста по таймеру согласно ритму в свои canvas'ы
 
+//todo на screenToolpicker добавить если загружено видео input смещение времени видео от 0.
+//если > 0, если < 0 перемотка вперед и start, если > 0, несколько секунд черного экрана и плей после setTimeout
+
 //Откудать брать аудио. Если есть аудио то с него(в приоритете). Если аудио нет а есть видео, берём с видео. 
 //аудио controls при наличии видео управляет и видео
 //Показывать плейсхолдер и срабатывать этот обработчик только тогда
@@ -118,24 +78,15 @@ canvasContext.fillStyle = "yellow";
 //todo воркер для стрима видео на canvas
 //https://developer.mozilla.org/en-US/docs/Web/API/MediaSourceHandle только chromium
 
-//todo возможность редактировать(удалять изменять склеивать) слоги в таймлайне. даблклик активирует редактор навешивает на span contenteditable.
 //или инструменты клей и ножницы в тулбаре с соответствующими кликами 
 
 //extra шкала секунд на таймлайне
-
 //todo grey вместо brown для слогов без time
-
 //todo мини input редактор времени слога под курсором в editor 
-
-//todo на screenToolpicker добавить если загружено видео input смещение времени видео от 0.
-//если > 0, если < 0 перемотка вперед и start, если > 0, несколько секунд черного экрана и плей
 
 //todo fix следа буквы ё
 
-//todo возможность стирать первую строку
-
 //onbefore backspace/del caret prevent  если остался один симв удалить его - вставить br
-//todo нельзя просто так взять выделить и написать слово вместо выделенного
 
 //не мешает
 //max-width height 100v для renderCanvas(не мешает)
@@ -144,31 +95,21 @@ canvasContext.fillStyle = "yellow";
 //extra кнопка выгрузить проект downloadJSONButton. кнопка загрузить проект из json
 //исправить: при нажатии на ножницы и toolbar editor теряет курсор
 //почистить код
+//
 
 //инструкция
 /*
 скрытый checkbox и язык в editor
 кнопка del или backspace по выделенным span обнулит их время
-Мультивыделение. лкм по первому слогу, зажать шифт и лкм по второму
+Мультивыделение. лкм по первому слогу, зажать шифт и лкм по второму. на телефонах нажатие одним пальцем по первому слогу, и, не отпуская первый, нажать вторым по второму слогу диапазона
 компенсация задержки. при использовании на телефоне здесь ставим 500 так как отклик на касание происходит не сразу. вам может подходить другое значение, проэксперементируйте
 первую строку стереть так. ставим курсор в начало второй и жмем стереть
+ввод _ и / дает склеивание и разделение
 */
-
-//todo нормальный fontsize
-
-//сохранение в localstorage всех настроек:
-//размер шрифта
-//linespacing из переменной
-//y offset
-//updatelocalstorage xysize для картинки делать только если эта картинка есть. саму картинку не созранять. если в ls есть сведения xysize то не центрировать и применить их
-//цвет подложки
-//эти настройки будут отдельной записью с префиксом settngs(не со слогами) и будут обновляться toolkit onblur или также повесить mutationObserver
-
-//переделать сохранение updateLocalstorageText
-//будет через 10 сек после срабатывания mutationObserver. При повторном срабатывании обнулится и снова запустится setTimeout(commitChanges)
 
 //в toolbar кнопки завернуть в два flexbox чтобы выровнять
 //дизайн, выбрать шрифт интерфейса
+//желтый не подходит под выделенное(или поменять font color для него)
 
 gotoSyllableTimeButton.onclick = () => {
     const sel = document.getSelection();
@@ -322,6 +263,66 @@ toolbarElem.ondblclick = e => {
     }
 }
 
+const loadSettings = settings => {
+    fontFamily.value = settings.fontFace;
+    fontSizeInput.value = settings.fontSize;
+    lineSpacing = settings.lineSpacing;
+    rightSyllableColorInput.value = rightSyllableColor = settings.wordsColor;
+    leftSyllableColorInput.value = leftSyllableColor = settings.filledWordsColor;
+    wordsYoffset = settings.yOffset;
+    bgColor.value = settings.padColor;
+    bgOpacity.value = settings.padOpacity;
+    backgroundColor.value = settings.backgroundColor;
+    latency = settings.latency;
+    videoSizeX.value = settings.videoSizeX; 
+    videoSizeY.value = settings.videoSizeY;
+    videoSizeX.onchange(); 
+    textEditToolkit.style.top = wordsYoffset * 100 + '%';
+}
+
+const updateLocalStorageSettings = () => {
+    const oldData = JSON.parse(localStorage.getItem('_' + songName) || '{}');
+    const toSave = {
+        fontFace: fontFamily.value,
+        fontSize: +fontSizeInput.value,
+        lineSpacing: lineSpacing,
+        wordsColor: rightSyllableColor,
+        filledWordsColor: leftSyllableColor,
+        yOffset: wordsYoffset,
+        padColor: bgColor.value,
+        padOpacity: bgOpacity.value,
+        backgroundColor: backgroundColor.value,
+        latency: latency,
+        videoSizeX: videoSizeX.value,
+        videoSizeY: videoSizeY.value
+    }
+    
+    if (img.src || oldData.imgName) {
+        if (img.src) {
+            Object.assign(toSave, {
+                imgName: img.dataset.name,
+                sizeMultiplier: bgSize.value,
+                bgY, bgX
+            });
+        } else {
+            Object.assign(toSave, {
+                imgName: oldData.imgName,
+                sizeMultiplier: oldData.sizeMultiplier,
+                bgY: oldData.bgY, bgX: oldData.bgX
+            });
+        }
+    }
+    
+    localStorage.setItem('_' + songName, JSON.stringify(toSave));
+}
+
+let timerToSaveSettings = -1;
+const setTimerToUpdateLSSettings = () => {
+    if (!songName) return; 
+    clearTimeout(timerToSaveSettings);
+    timerToSaveSettings = setTimeout(updateLocalStorageSettings, 1500);
+}
+
 videoSizeX.onchange = videoSizeY.onchange = () => {
     const newWidth = +videoSizeX.value;
     const newHeight = +videoSizeY.value;
@@ -338,11 +339,13 @@ videoSizeX.onchange = videoSizeY.onchange = () => {
     recalcMetrics();
     canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
     showStringsByPosition();
+    setTimerToUpdateLSSettings();
 }
 
 latencyInput.oninput = () => {
     const newVal = +latencyInput.value;
     if (newVal > -1) latency = newVal;
+    setTimerToUpdateLSSettings();
 }
 
 lineSpacingInput.oninput = () => {
@@ -352,6 +355,7 @@ lineSpacingInput.oninput = () => {
     recalcMetrics();
     canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
     showStringsByPosition();
+    setTimerToUpdateLSSettings();
 }
 
 fontSizeInput.oninput = () => {
@@ -362,6 +366,7 @@ fontSizeInput.oninput = () => {
     recalcMetrics();
     canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
     showStringsByPosition();
+    setTimerToUpdateLSSettings();
 }
 
 fontFamily.onchange = () => {
@@ -370,6 +375,7 @@ fontFamily.onchange = () => {
     recalcMetrics();
     canvasContext.clearRect(0, 0, textCanvas.width, textCanvas.height);
     showStringsByPosition();
+    setTimerToUpdateLSSettings();
 }
 
 rightSyllableColorInput.oninput = () => {
@@ -379,6 +385,7 @@ rightSyllableColorInput.oninput = () => {
     if (isPlaceholder) syllableCursor = 1;
     showStringsByPosition();
     if (isPlaceholder) syllableCursor = 0;
+    setTimerToUpdateLSSettings();
 }
 
 leftSyllableColorInput.oninput = () => {
@@ -388,6 +395,7 @@ leftSyllableColorInput.oninput = () => {
     if (isPlaceholder) syllableCursor = 1;
     showStringsByPosition();
     if (isPlaceholder) syllableCursor = 0;
+    setTimerToUpdateLSSettings();
 }
 
 let bgWithPad;
@@ -457,11 +465,11 @@ const drawPad = () => {
 
 const drawBackground = () => {
     bgCanvasContext.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
-    if (img)
+    if (img.src)
         bgCanvasContext.drawImage(img, bgX, bgY, img.width * (bgSize.value / 100), img.height * (bgSize.value / 100)); 
 }
 
-bgColor.oninput = bgOpacity.oninput = drawPad;
+bgColor.oninput = bgOpacity.oninput = () => {drawPad(); setTimerToUpdateLSSettings()}
 
 const getLength = ({clientX: x1, clientY: y1}, {clientX: x2, clientY: y2}) => {
     const leg1 = Math.abs(x2 - x1);
@@ -499,6 +507,7 @@ bgEditToolkit.onclick = () => {
         toolbarElem.style.display = 'none';
 
         bgEditToolkit[isMobile ? 'ontouchmove' : 'onmousemove'] = moveEvent => {
+            setTimerToUpdateLSSettings();
             if (~startLength) {
                 const newLength = getLength(...moveEvent.touches);
                 bgSize.value = startBgSize * (newLength / startLength);
@@ -577,6 +586,7 @@ textEditToolkit.onclick = () => {
         //перетаскивая вниз на мобильном появляется шторка
         toolbarElem.style.display = 'none';
         textEditToolkit[isMobile ? 'ontouchmove' : 'onmousemove'] = moveEvent => {
+            setTimerToUpdateLSSettings();
             if (~startLength) {
                 const newLength = getLength(...moveEvent.touches);
                 fontSizeInput.value = startFontSize * (startLength / newLength);
@@ -732,8 +742,13 @@ const observer = new MutationObserver((list) => {
 
 let timerToSave = -1;
 const saveLocalStorageObserver = new MutationObserver(() => {
-    clearTimeout(timerToSave);
-    timerToSave = setTimeout(updateLocalStorageWords, 3500);
+    if (started) {
+        audio.removeEventListener('pause', updateLocalStorageWords);
+        audio.addEventListener('pause', updateLocalStorageWords, { once: true }); 
+    } else {
+        clearTimeout(timerToSave);
+        timerToSave = setTimeout(updateLocalStorageWords, 3500);
+    }
 });
 
 saveLocalStorageObserver.observe(editor, { childList: true, subtree: true, characterData: true, attributeFilter: ['data-time'] });
@@ -1093,13 +1108,15 @@ const recalcMetrics = () => {
 }
 
 bgSize.oninput = () => {
-    if (!+bgSize.value) return;
+    if (!+bgSize.value || +bgSize.value < 0) return;
     drawBackground();
+    setTimerToUpdateLSSettings();
 }
 
 backgroundColor.oninput = () => {
     bgCanvasContext.fillStyle = backgroundColor.value;
-    drawBackground()
+    drawBackground();
+    setTimerToUpdateLSSettings();
 }
 
 const parseJsonToDomElements = strings => {
@@ -1282,6 +1299,8 @@ fileInput.onchange = () => {
         
         if (savedSong) {
             if (!confirm(`Найдена сохраненная версия караоке этой песни. Загрузить её?`)) return;
+            const settings = localStorage.getItem('_' + songName);
+            if (settings) loadSettings(JSON.parse(settings));
             parseJsonWords(JSON.parse(savedSong));
             stringCursor = 0;
             syllableCursor = 0;
@@ -1289,7 +1308,8 @@ fileInput.onchange = () => {
             showTimeline(audio.currentTime, timelineDuration);
         } else if (songNameOld && localStorage.getItem(songNameOld)) { //перед этой песней была другая(плюс), записать в минусовку её данные
             updateLocalStorageWords();
-            // todo updateLocalStorageSettings
+            if (localStorage.getItem('_' + songNameOld))
+                updateLocalStorageSettings();
         }
     }   
 }
@@ -1298,11 +1318,19 @@ bgfileInput.onchange = e => {
     const file = bgfileInput.files[0];
     if (file) {
         img.onload = () => {
-            bgCanvasContext.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
-            bgY = 0; //множитель до полноэкранного заполнения по высоте
-            const multiplier = backgroundCanvas.height / img.height;
-            bgX = backgroundCanvas.width / 2 - (img.width * multiplier) / 2; //центрируем
-            bgSize.value = multiplier * 100; 
+            img.dataset.name = file.name;
+            bgCanvasContext.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height); 
+            const savedImgData = JSON.parse(localStorage.getItem('_' + songName) || '{}');
+            if (savedImgData?.imgName === file.name) {
+                bgY = savedImgData.bgY;
+                bgX = savedImgData.bgX;
+                bgSize.value = savedImgData.sizeMultiplier;
+            } else {
+                bgY = 0; //множитель до полноэкранного заполнения по высоте
+                const multiplier = backgroundCanvas.height / img.height;
+                bgX = backgroundCanvas.width / 2 - (img.width * multiplier) / 2; //центрируем
+                bgSize.value = multiplier * 100; 
+            }
             drawBackground();
             bgEditToolkit.firstElementChild.style.display = 'none';
         }
