@@ -7,28 +7,68 @@
     <script src="./slogi.js"></script>
     <script defer src="./index.js"></script>
     <style>
-        /* 
-        audio::-webkit-media-controls-current-time-display {
-            color: white;
-            background-color: rgb(32, 32, 36);
-        }
         audio::-webkit-media-controls-panel {
             background-color: rgb(32, 32, 36);
         }
+        audio::-webkit-media-controls-enclosure {
+            border-radius: 0;
+        }
+
+
+        audio::-webkit-media-controls-play-button {
+            background-color: rgb(40, 40, 40);
+            color: white;
+            border-radius: 50%;
+        }
+        audio::-webkit-media-controls-current-time-display {
+            color: white;
+            text-shadow: none;
+        }
         audio::-webkit-media-controls-time-remaining-display {
             color: white;
+            text-shadow: none;
+        }
+
+        
+        audio::-webkit-media-controls-timeline {
+            background-color: rgb(32, 32, 36);
         }
         audio::-webkit-media-controls-volume-control-container {
-            color: white;
+            display: none;
+            background-color: rgb(32, 32, 36);
         }
-        audio::-webkit-media-controls-volume-slider {
+
+        input, select {
+            border-color: rgb(133, 133, 133);
+            background-color: rgb(59, 59, 59);
             color: white;
+            border-style: solid;
+            border-width: 1px;
+            border-radius: 2px;
         }
-        audio::-webkit-media-controls-fullscreen-button {
+        button {
+            background-color: rgb(107, 107, 107);
+            border-color: rgb(107, 107, 107);
             color: white;
-        } */
+            border-style: solid;
+            border-radius: 2px;
+            border-width: 2px;
+        }
+        button:hover {
+            background-color: rgb(127, 127, 127);
+            border-color: rgb(127, 127, 127);
+        }
+        button:active {
+            background-color: rgb(107, 107, 107);
+            border-color: rgb(107, 107, 107);
+        }
+
+        input[type="color"] {
+            padding: 0;
+        }
 
         body {
+            font-family: Arial, Helvetica, sans-serif;
             color: white;
             background: rgb(21, 21, 25);
             margin: 0;
@@ -51,7 +91,7 @@
                 max-height: 100%;
                 max-width: 100%;
                 position: absolute;
-                border: 1px solid gray;
+                border: 1px solid #333333;;
             }
             #renderCanvas {
                 position: relative;
@@ -75,13 +115,13 @@
             }
             #textEditToolkit.active, #bgEditToolkit.active {
                 cursor: grab;
-                border: 1px dashed grey;
+                border: 1px dashed #333333;;
             }
             #textEditToolkit.active:active, #bgEditToolkit.active:active {
                 cursor: grabbing;
             }
             #toolbarElem {
-                background: rgba(0,0,0,.7);
+                background: rgb(32, 32, 36);
                 padding: 0.7em;
                 top: 0;
                 display: none;
@@ -117,6 +157,9 @@
                 .text {
                     #fontFamily {
                         width: 4em;
+                    }
+                    #rightSyllableColorInput {
+                        margin-left: .2em;
                     }
                     & input[type="number"] {
                         width: 3em;
@@ -155,6 +198,7 @@
             background-color: rgb(32, 32, 36); 
         }
         audio {
+            border-top: 1px solid #333333;
             width: 100%;
         }
         .color {
@@ -170,9 +214,10 @@
                 position: absolute;
                 top: 0;
                 right: 0;
-                z-index: 1; 
+                z-index: 2; 
                 #deleteTimelineSyllableButton {
-                    background: brown;
+                    background-color: brown;
+                    border-color: brown;
                 }
             }
             .buttons {
@@ -183,8 +228,9 @@
                 position: absolute;
                 top: 0;
                 left: 0;
-                z-index: 1;
+                z-index: 2;
                 #scale {
+                    font-style: inherit;
                     text-align: center;
                     display: inline-block;
                     height: 100%;
@@ -203,7 +249,7 @@
                 left: 0%;
                 position: absolute;
                 height: 100%;
-                border-right: 1px dashed red;
+                border-left: 1px dashed red;
                 transition-property: left;
                 transition-timing-function: linear;
             }
@@ -227,9 +273,8 @@
                     background-color: rgba(0,0,0,0);
                 } 
                 .active {
-                    background-color: rgb(255,255,0);
+                    background-color: rgb(62, 62, 62);
                 }
-                
                 > span:nth-child(3n+1) {
                     align-items: baseline;
                 }
@@ -255,7 +300,7 @@
             position: absolute;
             height: 100%;
             width: 100%;
-            z-index: 2;
+            z-index: 3;
             display: none;
             background-color: rgba(0,0,0,.7); 
             /* 1e1b1bf0 */
@@ -285,6 +330,7 @@
                 }
                 #resetSyllableTimeButton {
                     background: brown;
+                    border-color: brown;
                 }
                 #autosplitLanguageWrapper {
                     position: absolute;
@@ -292,6 +338,7 @@
                 }
             }
             #editor {
+                font-family: 'Times New Roman', Times, serif;
                 padding: 0;
                 padding-left: 1.5em;
                 background-color: black;
@@ -324,7 +371,7 @@
                     }
                 }
                 > li.active {
-                    background: yellow;
+                    background-color: rgba(255, 255, 0, 0.85);
                 }
 
                 @media (orientation: landscape) {width: 50%;}
@@ -408,7 +455,7 @@
             <div class="buttons interface">
                 <button id="plus">+</button>
                 <button id="minus">-</button>
-                <span contenteditable="true" id="scale"></span>
+                <em contenteditable="true" id="scale"></em>
             </div>
             <div class="buttonsRight interface">
                 <input type="checkbox" id="loopModeCheckbox">

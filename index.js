@@ -1696,7 +1696,7 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         deleteTimelineSyllableButton.hidden = true;
         document.getSelection().removeAllRanges();
         multipleSelectionMode = false;
-        main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
+        main.onclick = null;
     };
 
     if (e.shiftKey) {multipleSelectionMode = true; return}
@@ -1705,7 +1705,7 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         multipleSelectionMode = true;
         return;
     }
-    if (e.target.tagName !== 'SPAN') return clear();
+    if (e.target.tagName !== 'SPAN') return; //clear();
     deleteTimelineSyllableButton.hidden = false;
 
     const syllable = spanSyllableMap.get(e.target);
@@ -1792,7 +1792,7 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
 
     words[isMobile ? 'ontouchmove' : 'onmousemove'] = multipleSelectionMode ? multipleMoveHandler : moveHandler;
 
-    main.firstElementChild[isMobile ? 'ontouchstart' : 'onmousedown'] = clear;
+    main.onclick = clear;
 
     // words.onmousemove = words.ontouchmove = words.onmouseup = words.ontouchend = null;
 
