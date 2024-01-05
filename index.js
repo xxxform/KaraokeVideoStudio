@@ -47,8 +47,6 @@ canvasContext.fillStyle = "yellow";
 //extra возможность добавить фоновое видео
 //при удержании пальца/кнопки слог тянется
 
-//при рендере написать сообщение. Пожалйста дождитесь окончания рендера, не закрывайте вкладку(иначе reqFrame заморозится)
-
 //нужно ли видео.
 //что представляет из себя большинство задних планов караоке видео
 //статичная картинка опционально с эффектами(kalinka)
@@ -1170,7 +1168,14 @@ document.addEventListener('DOMContentLoaded', () => {
     recalcMetrics();
     drawBackground();
 })
-
+const toggleTimeline = hide => {
+    words.style.visibility = hide ? 'hidden' : '';
+    cursor.hidden = hide;
+    document.querySelector('body > .bottom > .timeline > .buttons').hidden = hide;
+    document.querySelector('body > .bottom > .timeline > .buttonsRight').hidden = hide;
+    placeholder.textContent = hide ? 'Пожалуйста дождитесь окончания экспорта. Не закрывайте страницу' : '';
+    placeholder.style.display = hide ? '' : 'none';
+}
 render.onclick = async () => {
     const suggestedName = songName + "(Караоке).webm";
     const chunks = [];
@@ -1206,13 +1211,13 @@ render.onclick = async () => {
     });
 
     audio.addEventListener('pause', () => {
-        document.querySelector('body > .bottom > .timeline').style.visibility = '';
+        toggleTimeline(false);
         recording = false;
         recorder.stop();
         stream.getTracks().forEach(track => track.stop());
     }, { once: true });
 
-    document.querySelector('body > .bottom > .timeline').style.visibility = 'hidden';
+    toggleTimeline(true);
     renderCanvasContext.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
     renderCanvasContext.drawImage(backgroundCanvas, 0, 0, renderCanvas.width, renderCanvas.height); 
     if (!strings[0]?.textContent && !strings[1]?.textContent) hiddenPad = true;
@@ -1558,6 +1563,7 @@ audio.onplay = e => {
 }
 
 audio.onpause = e => {
+    if (cursorAnimationPlayer)
     cursorAnimationPlayer.cancel();
     cursor.style.left = getTimelinePercent() + '%';
     clearTimeout(timelineTimer);
