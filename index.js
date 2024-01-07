@@ -10,7 +10,7 @@ let syllables = editor.getElementsByTagName('a');
 let syllableCursor = -1;
 let stringCursor = 0;
 let isSecondString = false;
-let timer = -1;
+let timer = () => {};
 let timelineDuration = scale.textContent = 10; //в секундах
 let timelinePosition = 0;
 let timelineTimer = -1;
@@ -108,6 +108,19 @@ canvasContext.fillStyle = "yellow";
 //дизайн, выбрать шрифт интерфейса
 //желтый не подходит под выделенное(или поменять font color для него)
 
+let context = new AudioContext();
+const timerCallback = e => e.target.disconnect(e.target.context.destination);
+const setTimer = (callback, time) => {
+    const timerSource = context.createConstantSource();
+	timerSource.buffer = context.startBuffer;
+	timerSource.connect(context.destination); 
+	timerSource.addEventListener('ended', callback);
+	timerSource.addEventListener('ended', timerCallback);
+	timerSource.start(context.currentTime + time);
+	timerSource.stop(context.currentTime + time);
+	return () => timerSource.removeEventListener('ended', callback);
+}
+
 gotoSyllableTimeButton.onclick = () => {
     const sel = document.getSelection();
     const a = sel.anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorNode.parentElement : sel.anchorNode;
@@ -126,7 +139,7 @@ gotoSyllableTimeButton.onclick = () => {
         audio.currentTime = nearLeftTime;
         cursorAnimationPlayer.cancel();
         clearTimeout(timelineTimer);
-        clearTimeout(timer);
+        timer();
         setCursorPosition();
         showStringsByPosition();
         showTimeline(audio.currentTime, timelineDuration);
@@ -219,7 +232,7 @@ const pasteSelectedSyllables = () => {
     if (started) {
         cursorAnimationPlayer.cancel();
         clearTimeout(timelineTimer);
-        clearTimeout(timer);
+        timer();
         setCursorPosition();
         showStringsByPosition();
         runCursor();
@@ -1349,13 +1362,13 @@ bgfileInput.onchange = e => {
 
 const runCursor = () => {
     let timelineRight = timelinePosition + timelineDuration - audio.currentTime; 
-    cursorAnimationPlayer = cursor.animate([{left: getTimelinePercent() + "%"}, {left: "100%"}], timelineRight * 1000);
+    cursorAnimationPlayer = cursor.animate([{left: getTimelinePercent() + "%"}, {left: "100%"}], timelineRight < 0 ? 0 : timelineRight * 1000);
 
     timelineTimer = setTimeout(function next() {
         if (loopMode) {
             audio.currentTime = loopStartTime;
             cursorAnimationPlayer.cancel();
-            clearTimeout(timer);
+            timer();
             setCursorPosition();
             showStringsByPosition();
             runCursor();
@@ -1406,11 +1419,11 @@ const timerToNearSyllableWithTime = (syllable, show) => {
         const aIndex = Array.prototype.indexOf.call(a.parentElement.children, a);
         const liIndex = Array.prototype.indexOf.call(strings, a.parentElement);
         timeToNext = (time - audio.currentTime) * 1000 - latency;
-        return timer = setTimeout(() => {
+        return timer = setTimer(() => {
             stringCursor = liIndex;
             syllableCursor = aIndex;
             show(a);
-        }, timeToNext);
+        }, timeToNext / 1000);
     }
 }
 
@@ -1435,11 +1448,11 @@ const play = () => {
         let timeToNext = (time - audio.currentTime) * 1000 - latency;
         if (!(time + 1)) return timerToNearSyllableWithTime(nextSyllable, show);
         if (timeToNext < 4) show(nextSyllable);
-        else timer = setTimeout(show, timeToNext, nextSyllable);
+        else timer = setTimer(() => show(nextSyllable), timeToNext / 1000);
     }
 
     if (!(time + 1)) return timerToNearSyllableWithTime(nextSyllable, show);
-    timer = setTimeout(show, timeToNext, nextSyllable);
+    timer = setTimer(() => show(nextSyllable), timeToNext / 1000);
 }
 
 const clickHandler = () => { // как из js изменить css класс глобально? или css переменную
@@ -1461,7 +1474,7 @@ const clickHandler = () => { // как из js изменить css класс �
     if (span?.style && span?.parentElement) { //секунд от начала timelinePosition 
         span.style.left = currentPercent;
         span.classList.add('color');
-        clearTimeout(timer);
+        timer();
         play(); //todo слог -1 при скраббинге остается на курсоре
     } else {
         const span = document.createElement('span');
@@ -1568,7 +1581,7 @@ audio.onpause = e => {
     cursorAnimationPlayer.cancel();
     cursor.style.left = getTimelinePercent() + '%';
     clearTimeout(timelineTimer);
-    clearTimeout(timer);
+    timer();
     main[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
     started = false;
 
@@ -1635,7 +1648,7 @@ const deleteHandler = () => {
     }
 
     if (started) {
-        clearTimeout(timer);
+        timer();
         setCursorPosition();
         showStringsByPosition();
         play();
@@ -1747,7 +1760,7 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         e.target.style.left = newPercent + '%';
         
         if (started) {
-            clearTimeout(timer);
+            timer();
             setCursorPosition();
             showStringsByPosition();
             play();
@@ -1779,7 +1792,7 @@ words[isMobile ? 'ontouchstart' : 'onmousedown'] = e => {
         });
 
         if (started) {
-            clearTimeout(timer);
+            timer();
             setCursorPosition();
             showStringsByPosition();
             play();
