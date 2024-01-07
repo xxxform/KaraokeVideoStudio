@@ -243,6 +243,7 @@ const pasteSelectedSyllables = () => {
     }
 
     const first = syllableSpanMap.get(allA[0]);
+    if (!first) return;
     const last = syllableSpanMap.get(allA[allA.length - 1]) || words.lastElementChild;
     const range = document.createRange();
     range.setStart(first.firstChild, 0);
@@ -1208,7 +1209,7 @@ render.onclick = async () => {
             }
         })
     });
-    const writable = await handle.createWritable();
+    const writable = await handle.createWritable().catch(e => console.error(e));
     const stream = audio.captureStream();
     stream.addTrack(renderCanvas.captureStream().getVideoTracks()[0]);
 
@@ -1218,9 +1219,13 @@ render.onclick = async () => {
     });
 
     recorder.addEventListener("dataavailable", async (event) => {
-        await writable.write(event.data);
-        if (recorder.state === "inactive") {
-            await writable.close();
+        try {
+            await writable.write(event.data);
+            if (recorder.state === "inactive") {
+                await writable.close();
+            }
+        } catch(e) {
+            console.error(e);
         }
     });
 
