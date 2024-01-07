@@ -1209,7 +1209,15 @@ render.onclick = async () => {
             }
         })
     });
-    const writable = await handle.createWritable().catch(e => console.error(e));
+    let writable = null;
+    
+    try {
+        writable = await handle.createWritable();
+    } catch(e) {
+        console.error(e);
+        return;
+    };
+
     const stream = audio.captureStream();
     stream.addTrack(renderCanvas.captureStream().getVideoTracks()[0]);
 
