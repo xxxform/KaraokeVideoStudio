@@ -1575,7 +1575,7 @@ minus.onclick = () => {
 }
 
 audio.onplay = e => {
-    context.resume();
+    //context.resume();
     setCursorPosition();
     showStringsByPosition();
     if (!recording) {
@@ -1597,7 +1597,7 @@ audio.onpause = e => {
     cursor.style.left = getTimelinePercent() + '%';
     clearTimeout(timelineTimer);
     timer();
-    context.suspend();
+    //context.suspend();
     main[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
     started = false;
 
