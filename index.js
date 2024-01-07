@@ -158,10 +158,11 @@ const cloneSyllablesBySpanRange = inEditor => () => {
     pasteTimelineButton.hidden = false;
 }
 
-const pasteSelectedSyllables = () => {
+const pasteSelectedSyllables = () => { 
     if (!lastSelectedSyllables) return;
+    const fragment = lastSelectedSyllables.cloneNode(true);
     const currentTime = audio.currentTime;
-    let allA = lastSelectedSyllables.querySelectorAll('a');
+    let allA = fragment.querySelectorAll('a');
     let currentString = strings[stringCursor];
 
     let endTime = Infinity;
@@ -206,10 +207,10 @@ const pasteSelectedSyllables = () => {
         }
     });
 
-    allA = lastSelectedSyllables.querySelectorAll('a');
+    allA = fragment.querySelectorAll('a');
 
-    if (currentString) currentString.before(lastSelectedSyllables);
-    else editor.append(lastSelectedSyllables);
+    if (currentString) currentString.before(fragment);
+    else editor.append(fragment);
 
     
     showTimeline(timelinePosition, timelineDuration, lastTime > timelinePosition + timelineDuration ? lastTime : 0);
@@ -1645,6 +1646,7 @@ const deleteHandler = () => {
 }
 
 document.onkeydown = e => {
+    //if (e.code === 'Space') audio[started ? 'pause' : 'play'](); хром не разрешает
     if (!(e.key === 'Delete' || e.key === 'Backspace')) return;
     deleteHandler();
 }
