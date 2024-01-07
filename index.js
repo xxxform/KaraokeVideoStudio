@@ -108,7 +108,7 @@ canvasContext.fillStyle = "yellow";
 //дизайн, выбрать шрифт интерфейса
 //желтый не подходит под выделенное(или поменять font color для него)
 
-let context = new AudioContext();
+let context = new AudioContext(); //мб ctx.resume() и suspend() при плей пауз
 const timerCallback = e => e.target.disconnect(e.target.context.destination);
 const setTimer = (callback, time) => {
     const timerSource = context.createConstantSource();
@@ -1194,24 +1194,25 @@ const toggleTimeline = hide => {
 render.onclick = async () => {
     const suggestedName = songName + "(Караоке).webm";
     const chunks = [];
-    const handle = await (window.showSaveFilePicker ? window.showSaveFilePicker({ suggestedName }) : {
-        createWritable: () => ({
-            write: data => chunks.push(data),
-            close: () => {
-                if (!chunks.length) return;
-                const blob = new Blob(chunks, { type: 'video/webm'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = suggestedName;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-        })
-    });
+    let handle = null;
     let writable = null;
     
     try {
+        handle = await (window.showSaveFilePicker ? window.showSaveFilePicker({ suggestedName }) : {
+            createWritable: () => ({
+                write: data => chunks.push(data),
+                close: () => {
+                    if (!chunks.length) return;
+                    const blob = new Blob(chunks, { type: 'video/webm'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = suggestedName;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }
+            })
+        });
         writable = await handle.createWritable();
     } catch(e) {
         console.error(e);
@@ -1574,6 +1575,7 @@ minus.onclick = () => {
 }
 
 audio.onplay = e => {
+    context.resume();
     setCursorPosition();
     showStringsByPosition();
     if (!recording) {
@@ -1595,6 +1597,7 @@ audio.onpause = e => {
     cursor.style.left = getTimelinePercent() + '%';
     clearTimeout(timelineTimer);
     timer();
+    context.suspend();
     main[isMobile ? 'ontouchstart' : 'onmousedown'] = null;
     started = false;
 
