@@ -105,21 +105,17 @@ canvasContext.fillStyle = "yellow";
 ввод _ и / дает склеивание и разделение
 */
 
-//дизайн, выбрать шрифт интерфейса
-//желтый не подходит под выделенное(или поменять font color для него)
-
-let context = new AudioContext(); //мб ctx.resume() и suspend() при плей пауз
-const timerCallback = e => e.target.disconnect(e.target.context.destination);
-const setTimer = (callback, time) => {
-    const timerSource = context.createConstantSource();
-	timerSource.buffer = context.startBuffer;
-	timerSource.connect(context.destination); 
-	timerSource.addEventListener('ended', callback);
-	timerSource.addEventListener('ended', timerCallback);
-	timerSource.start(context.currentTime + time);
-	timerSource.stop(context.currentTime + time);
-	return () => timerSource.removeEventListener('ended', callback);
-}
+function setTimer(callback, time) {
+    const div = document.createElement("div");
+    const keyframes = new KeyframeEffect(div, [], { duration: time < 0 ? 0 : time, iterations: 1 });
+    const animation = new Animation(keyframes, document.timeline);
+    animation.onfinish = callback;
+    animation.play();
+    return () => {
+        animation.onfinish = null;
+        animation.cancel()
+    };
+  }
 
 gotoSyllableTimeButton.onclick = () => {
     const sel = document.getSelection();
@@ -1437,7 +1433,7 @@ const timerToNearSyllableWithTime = (syllable, show) => {
             stringCursor = liIndex;
             syllableCursor = aIndex;
             show(a);
-        }, timeToNext / 1000);
+        }, timeToNext);
     }
 }
 
@@ -1462,11 +1458,11 @@ const play = () => {
         let timeToNext = (time - audio.currentTime) * 1000 - latency;
         if (!(time + 1)) return timerToNearSyllableWithTime(nextSyllable, show);
         if (timeToNext < 4) show(nextSyllable);
-        else timer = setTimer(() => show(nextSyllable), timeToNext / 1000);
+        else timer = setTimer(() => show(nextSyllable), timeToNext);
     }
 
     if (!(time + 1)) return timerToNearSyllableWithTime(nextSyllable, show);
-    timer = setTimer(() => show(nextSyllable), timeToNext / 1000);
+    timer = setTimer(() => show(nextSyllable), timeToNext);
 }
 
 const clickHandler = () => { // как из js изменить css класс глобально? или css переменную
