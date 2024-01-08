@@ -105,17 +105,12 @@ canvasContext.fillStyle = "yellow";
 ввод _ и / дает склеивание и разделение
 */
 
+const worker = new Worker('./renderWorker.js');
 function setTimer(callback, time) {
-    const div = document.createElement("div");
-    const keyframes = new KeyframeEffect(div, [], { duration: time < 0 ? 0 : time, iterations: 1 });
-    const animation = new Animation(keyframes, document.timeline);
-    animation.onfinish = callback;
-    animation.play();
-    return () => {
-        animation.onfinish = null;
-        animation.cancel()
-    };
-  }
+    worker.postMessage([recording ? 'render' : null, time]);
+    worker.onmessage = callback;
+    return () => worker.postMessage(['stop']);
+}
 
 gotoSyllableTimeButton.onclick = () => {
     const sel = document.getSelection();
@@ -1579,7 +1574,7 @@ audio.onplay = e => {
         main[isMobile ? 'ontouchstart' : 'onmousedown'] = clickHandler;
     }
     play();
-    
+
     started = true;
     if (navigator.wakeLock) 
         navigator.wakeLock.request('screen')
