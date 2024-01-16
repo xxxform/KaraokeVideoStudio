@@ -4,7 +4,7 @@
 
 Видеоинструкция [ЗДЕСЬ](https://youtu.be/qXU6qw-cYpY?si=9ECSbcxdrLKWJDrO)
 
-![изображение](https://github.com/xxxform/KaraokeVideoStudio/assets/26012820/04ee773c-6e6e-46a3-a909-ee51af52a874)
+![изображение](https://github.com/xxxform/KaraokeVideoStudio/assets/26012820/87d36ade-8e7e-4ccf-a04f-f5180a688b0b)
 
 ![изображение](https://github.com/xxxform/KaraokeVideoStudio/assets/26012820/03b907a6-27bd-4f43-a3ae-16a59a55cf6e)
 
