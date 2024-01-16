@@ -1,4 +1,4 @@
-![Karaoke Video Studio](https://xxxform.github.io/KaraokeVideoStudio/)
+# ![Karaoke Video Studio](https://xxxform.github.io/KaraokeVideoStudio/)
 
 Программа для создания караоке видео
 
