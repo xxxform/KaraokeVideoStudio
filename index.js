@@ -1007,8 +1007,7 @@ countDownButton[isMobile ? 'ontouchstart' : 'onmousedown'] = () => {
         [['1', aTime - 1]],
     ] //todo если на мобильном будет мерцание - от строк с числами отнять 0,5, поставить их время раньше следующего слога
     if (liIndex % 2) template.unshift([['', aTime - 3]],);
-    //сместить template[0] влево на полсекунды чтобы можно было перетаскивать
-    template[0][0][1] -= .5;
+    template[0][0][1] = nearestTime + 0.99;
 
     currentLi.before(...parseJsonToDomElements(template));
 }
@@ -1361,6 +1360,105 @@ bgfileInput.onchange = e => {
     }
 }
 
+const addCountDown = lines => {
+    const newLines = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const current = lines[i];
+        const next = lines[i + 1];
+        newLines.push(current);
+
+        if (!next) break; //вставить пустые строки к проигрышу
+        const currentMaxTime = Math.max(...current.map(([char, start]) => start));
+        let nextText = '';
+        const nextMinTime = Math.min(...next.map(([char, start]) => {
+            nextText += char;
+            return start;
+        }));
+        if (nextMinTime - currentMaxTime > 5) { //или 6
+            //вставляем закрытие слогов текущей строки через 1.5с
+            newLines.push([ ['', currentMaxTime + 1.5] ]);
+            newLines.push([ ['', nextMinTime - 3] ]);
+            newLines.push([ ['', nextMinTime - 3] ]);
+            if ((newLines.length - 1) % 2) newLines.push([ ['', nextMinTime - 3] ]);
+            newLines.push([ ['3', nextMinTime - 3] ]);
+            newLines.push([ [nextText, nextMinTime - 2] ]);
+            newLines.push([ ['2', nextMinTime - 2] ]);
+            newLines.push([ [nextText, nextMinTime - 1] ]);
+            newLines.push([ ['1', nextMinTime - 1] ]);
+        }
+    }
+    return newLines;
+    //также вставить пустые строки после последних строк перед проигрышем если есть место. посмотреть как в других караоке
+}
+
+function parser(object) {
+    let lines = [];
+    
+    object.segments.forEach(function self(segment) { //сегмент - предложение. учет выдачи нескольких в одном
+        let symbols = []; //набор симвов в предложении. 43 символа уже у края
+
+        for(let i = 0; i < segment.chars.length; i++) {
+            let {char, start} = segment.chars[i];
+            let lastChar = symbols[symbols.length - 1];
+            
+            if (isFinite(start)) {
+                symbols.push([char, start]);
+            } else {
+                if (lastChar) //приклеить пунктуацию к символу слева
+                    lastChar[0] += char;
+            }
+            let next = segment.chars[i + 1]?.char; //учёт попадания нескольких предложений в одно(ищем большие буквы)
+            let isBreak = segment.chars.length > 25 && next !== undefined && i > 1 && (next.charCodeAt(0) === 1025 || (next.charCodeAt(0) > 1039 && next.charCodeAt(0) < 1072));
+
+            if (isBreak || i > 43 && segment.chars.length > 44 && ['.', ',', ' '].includes(char)) { //просто большие предложения
+                lines.push(symbols);
+                return self({chars: segment.chars.slice(i + 1)});
+            }
+        }
+
+        lines.push(symbols);
+    });
+    return lines;
+}
+
+const addSongNameToTimeline = (songName, lines) => {
+    let [song, author] = songName.split('-');
+    song = song.trim();
+    if (author) author = author.trim();
+
+    const firstLineMinTime = Math.min(...lines[0].map(([char, start]) => start));
+    let time = firstLineMinTime >= 3 ? 2.5 : 0.01;
+
+    if (author) lines.unshift([ [author, time] ]);
+    lines.unshift([ [song, time] ]);
+}
+
+const addEndEOF = lines => {
+    const lastLineMaxTime = Math.max(...lines[lines.length - 1].map(([char, start]) => start)) + 1.5; //может сломать timeline
+    lines.push([ ['', lastLineMaxTime] ], [ ['', lastLineMaxTime] ]);
+}
+
+uploadTitlesFileInput.onchange = e => {
+    const file = uploadTitlesFileInput.files[0];
+    if (file) {
+        let reader = new FileReader();
+        reader.onload = event => {
+            let titleJSON = JSON.parse(event.target.result);
+            let lines = parser(titleJSON);
+            addSongNameToTimeline(file.name.slice(0, file.name.lastIndexOf('.')), lines);
+            lines = addCountDown(lines);
+            addEndEOF(lines);
+            parseJsonWords(lines);
+            stringCursor = 0;
+            syllableCursor = 0;
+            showStringsByPosition();
+            showTimeline(audio.currentTime, timelineDuration);
+        };
+        reader.readAsText(uploadTitlesFileInput.files[0]);
+    }
+}
+uploadButton.onclick = () => uploadTitlesFileInput.click();
 // strings[0][0].element.before(document.createElement('div')) вставит div перед span.  
 // .after - после. полезно при редактировании
 // node.replaceWith(nodes || strings) - заменяет node заданными узлами или строками. то что надо для wysiwig
@@ -1666,7 +1764,7 @@ const deleteHandler = () => {
 }
 
 document.onkeydown = e => {
-    //if (e.code === 'Space') audio[started ? 'pause' : 'play'](); хром не разрешает
+    if (e.code === 'Space') audio[started ? 'pause' : 'play']();
     if (!(e.key === 'Delete' || e.key === 'Backspace')) return;
     deleteHandler();
 }

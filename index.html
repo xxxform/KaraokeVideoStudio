@@ -336,7 +336,7 @@
                     background: brown;
                     border-color: brown;
                 }
-                #autosplitLanguageWrapper {
+                #autosplitLanguageWrapper, #uploadButton {
                     position: absolute;
                     right: 0;
                 }
@@ -447,6 +447,7 @@
 
                     <input type="file" title="изображение" id="bgfileInput" hidden accept="image/*"/>
                     <input type="file" hidden id="fileInput"/>
+                    <input type="file" id="uploadTitlesFileInput" hidden accept="application/JSON"/>
                 </div>
             </div>
             
@@ -482,6 +483,7 @@
             <button title="Склеить слоги" id="uniteButton">⫘</button> 
             <button title="Сбросить время слогов" id="resetSyllableTimeButton">🕒</button>
             <button title="Перемотать на слог" id="gotoSyllableTimeButton">⏭︎</button>
+            <button style="text-decoration-line: underline;" id="uploadButton" title="Загрузить субтитры">⇧</button>
             <button class="countDownButtonClass" style="visibility: hidden">321</button> <!-- для выравнивания -->
             <span hidden id="autosplitLanguageWrapper">
                 <input type="checkbox" id="autoSplit" checked>
