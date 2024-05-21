@@ -1764,7 +1764,7 @@ const deleteHandler = () => {
 }
 
 document.onkeydown = e => {
-    if (e.code === 'Space') audio[started ? 'pause' : 'play']();
+    if (e.code === 'Space' && !wordEditor.style.display) audio[started ? 'pause' : 'play']();
     if (!(e.key === 'Delete' || e.key === 'Backspace')) return;
     deleteHandler();
 }
