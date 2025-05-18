@@ -835,7 +835,7 @@ const parseAndPastePlainText = text => {
             const addSyllable = syllable => {
                 const a = document.createElement('a');
                 a.dataset.time = beforeStartATime;
-                a.textContent = syllable.replaceAll('_', ' ');
+                //a.textContent = syllable.replaceAll('_', ' ');
                 li.append(a);
             }
 
@@ -1021,10 +1021,10 @@ editor.onbeforeinput = e => {
             e.preventDefault();
             splitSyllables();
         } 
-        else if (e.data.at(-1) === '_') {
+        /*else if (e.data.at(-1) === '_') {
             e.preventDefault();
             uniteSyllables();
-        }
+        }*/
     } else if (e.data.includes(' ')) {// или '\n'
         e.preventDefault();
         parseAndPastePlainText(e.data);
