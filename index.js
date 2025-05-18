@@ -835,7 +835,7 @@ const parseAndPastePlainText = text => {
             const addSyllable = syllable => {
                 const a = document.createElement('a');
                 a.dataset.time = beforeStartATime;
-                //a.textContent = syllable.replaceAll('_', ' ');
+                a.textContent = syllable;//.replaceAll('_', ' ');
                 li.append(a);
             }
 
